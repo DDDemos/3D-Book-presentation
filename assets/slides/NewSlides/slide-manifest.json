@@ -3,7 +3,8 @@
   "numbering": "The two-digit slide number matches the one-based PDF page number.",
   "notes": [
     "PDF pages 1 and 13 repeat the same quote. Both identical source images are retained at their respective positions.",
-    "Images were matched by artwork and PDF page text; PNG bytes were preserved."
+    "Images were matched by artwork and PDF page text; PNG bytes were preserved.",
+    "The active deck omits PDF pages 7–10. Filenames and pdf_page values retain the original PDF numbering."
   ],
   "slides": [
     {
@@ -47,34 +48,6 @@
       "file": "slide-06-birmingham-music-stories.png",
       "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (1) copy.png",
       "sha256": "baf398be7acc3f5322ba82ffb86ef271824751a495290e44fe2302edc378a014"
-    },
-    {
-      "pdf_page": 7,
-      "title": "Idea, Frontend, Backend, App",
-      "file": "slide-07-traditional-app-development.png",
-      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (2) copy.png",
-      "sha256": "788bdb8204e57f4ce2f97552642ecc9a6ba3f489902494e6d48feb9aa1b96db1"
-    },
-    {
-      "pdf_page": 8,
-      "title": "Idea, Website Builder, App",
-      "file": "slide-08-website-builder-workflow.png",
-      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (3) copy.png",
-      "sha256": "e089c63446b02f14c8d94a15166684d716558e1c9992496d6d3618babb5e8cc6"
-    },
-    {
-      "pdf_page": 9,
-      "title": "Idea, Prompts, AI Agent, App",
-      "file": "slide-09-ai-agent-app-development.png",
-      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (4).png",
-      "sha256": "e104c39a310293587d12980833084cfe846b8a317d918fa3a44c03e87a4c6889"
-    },
-    {
-      "pdf_page": 10,
-      "title": "Agentic Workflow",
-      "file": "slide-10-agentic-workflow.png",
-      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (5).png",
-      "sha256": "daa1405414930cd91d78938e60e4b22018c5fffac524b213ce2cd3b65635c193"
     },
     {
       "pdf_page": 11,

@@ -4,7 +4,7 @@ import { RESOURCE_TRANSITION_MS } from "./display-config.js?v=7";
 export const DEV_MODE = false;
 export const presentationTitle = "Intro to Vibe Coding";
 export const slides = [
-  // One book page per PDF page, including the repeated quote at positions 1 and 13.
+  // Selected PDF pages in source order; the repeated quote remains on PDF pages 1 and 13.
   {
     src: "./assets/slides/NewSlides/slide-01-why-build-this-application.png",
     title: "Why build this application?",
@@ -41,26 +41,6 @@ export const slides = [
     src: "./assets/slides/NewSlides/slide-06-birmingham-music-stories.png",
     title: "Birmingham Music Stories",
     description: "An interactive exhibition of Birmingham's musical heritage built with HTML, CSS, and vanilla JavaScript. Its brief includes artist stories, genre filters, a sound map, and a musical timeline.",
-  },
-  {
-    src: "./assets/slides/NewSlides/slide-07-traditional-app-development.png",
-    title: "Idea, Frontend, Backend, App",
-    description: "A diagram traces traditional application development from an idea through frontend and backend development to a working app.",
-  },
-  {
-    src: "./assets/slides/NewSlides/slide-08-website-builder-workflow.png",
-    title: "Idea, Website Builder, App",
-    description: "A diagram shows an idea becoming an application through a visual website builder.",
-  },
-  {
-    src: "./assets/slides/NewSlides/slide-09-ai-agent-app-development.png",
-    title: "Idea, Prompts, AI Agent, App",
-    description: "A diagram shows an idea expressed through prompts, developed by an AI agent, and turned into an application.",
-  },
-  {
-    src: "./assets/slides/NewSlides/slide-10-agentic-workflow.png",
-    title: "Agentic Workflow",
-    description: "An overview connects app builders, development environments, and coding agents with version control and project context.",
   },
   {
     src: "./assets/slides/NewSlides/slide-11-tools.png",

@@ -545,13 +545,13 @@ try {
     assert(f.win.copied.at(-1).includes('EXAMPLE PROMPT'), 'Fallback copied the wrong content');
   });
   f = await fixture({configuredDeck: true});
-  await check('The configured deck matches the PDF manifest and every page opens in 3D and reading view', async () => {
+  await check('The configured deck matches the selected PDF pages in the manifest and every page opens in 3D and reading view', async () => {
     const manifest = await (await fetch(new URL('assets/slides/NewSlides/slide-manifest.json', root))).json();
     assert(f.p.slides.length === manifest.slides.length && f.p.total === manifest.slides.length + 2, 'Configured deck is missing slides or covers');
     assert(f.$('index-grid').children.length === f.p.total, 'Index omitted a configured entry');
     for (const [i, slide] of f.p.slides.entries()) {
       const expected = manifest.slides[i];
-      assert(expected.pdf_page === i + 1 && slide.src.endsWith('/' + expected.file) && slide.title === expected.title, 'PDF order or title mismatch at slide ' + (i + 1));
+      assert(expected.pdf_page > (manifest.slides[i - 1]?.pdf_page ?? 0) && slide.src.endsWith('/' + expected.file) && slide.title === expected.title, 'PDF order or title mismatch at slide ' + (i + 1));
       const image = new f.win.Image(); image.src = slide.src; await image.decode();
       assert(image.naturalWidth === 960 && image.naturalHeight === 540, 'Slide image did not decode at its original dimensions');
       f.$('index-toggle-btn').click(); f.$('index-grid').children[i + 1].click();

@@ -74,8 +74,8 @@ plain text displayed below the image in reading view. Blank or missing titles be
 “Slide N.” For presentations containing text, include that text or an equivalent description
 so the content is available to screen readers. Images are not automatically transcribed.
 
-The active deck contains the 25 workshop images in `assets/slides/NewSlides/`, in PDF page
-order. Each is a separate book page with an Index title and reading-view description.
+The active deck contains 21 workshop images in `assets/slides/NewSlides/`, in PDF page
+order, excluding PDF pages 7–10. Each is a separate book page with an Index title and reading-view description.
 The quote on PDF pages 1 and 13 remains in both positions. The original three sample images
 are retained as test fixtures. The book uses the supplied leather-and-gold
 front cover, back cover, and spine PNGs. The physical pages remain 3:4 portrait, but the
@@ -122,16 +122,16 @@ no selector. Configure at most one item of each type (the first of each type is 
 Omit `resources` or use an empty array for slides that need no panel.
 
 The example above demonstrates a prompt and an example.com URL; it is not part of the active
-25-slide deck. Slide 2 includes the full Birmingham Music Stories design prompt from
+21-slide deck. Slide 2 includes the full Birmingham Music Stories design prompt from
 [birmingham-music-stories-stitch-prompt.txt](assets/text/birmingham-music-stories-stitch-prompt.txt).
-Slide 14 includes the implementation prompt from
+Slide 10 includes the implementation prompt from
 [birmingham-music-stories-ai-studio-prompt.txt](assets/text/birmingham-music-stories-ai-studio-prompt.txt).
-Slide 22 includes the photo replacement prompt from
+Slide 18 includes the photo replacement prompt from
 [birmingham-music-stories-photos-prompt.txt](assets/text/birmingham-music-stories-photos-prompt.txt).
-Slide 23 includes the About Me page prompt from
+Slide 19 includes the About Me page prompt from
 [birmingham-music-stories-about-me-prompt.txt](assets/text/birmingham-music-stories-about-me-prompt.txt).
 Website resources link slide 2 to Google Stitch, slide 3 to the DDDemos GitHub profile,
-and slide 14 to Google AI Studio. On slides with a prompt, the website appears above it.
+and slide 10 to Google AI Studio. On slides with a prompt, the website appears above it.
 Attach further resources to the appropriate slide objects as needed.
 Text and URLs drawn inside a slide image do not automatically create resource controls.
 Resource text is separate from the slide's accessible `description`.
