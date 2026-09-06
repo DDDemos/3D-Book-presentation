@@ -10,6 +10,7 @@ const { Presentation } = await module('presentation');
 const { SlideTextureCache } = await module('texture-cache');
 const { createStartup } = await module('startup');
 const { createRenderLoop } = await module('render-loop');
+const { ResourceTextStore, websiteURL } = await module('resources');
 const checks = [];
 const test = (name, run) => checks.push({ name, run });
 const texture = label => ({ label, disposed: 0, dispose() { this.disposed++; } });
@@ -52,6 +53,56 @@ test('busy state is published before decoding; repeated requests are ignored', a
   assert.equal(turns.length, 1); assert.equal(turns[0].duration, undefined);
   await finish(); await navigation;
   assert.equal(p.currentIndex, 1); assert.equal(p.busy, false);
+});
+test('resources follow their slide objects through insertion and reordering', () => {
+  const a = {src: 'a.png', title: 'A', resources: [{type: 'text', label: 'Prompt A', src: './a.txt'}]};
+  const b = {src: 'b.png', title: 'B', resources: [{type: 'url', label: 'Site B', url: 'https://example.com/b'}]};
+  const p = new Presentation([b, {src: 'new.png'}, a]);
+  assert.equal(p.entries[1].resources[0].url, b.resources[0].url);
+  assert.deepEqual(p.entries[2].resources, []);
+  assert.equal(p.entries[3].resources[0].src, a.resources[0].src);
+});
+test('index jumps expose only one final resource destination until navigation settles', async () => {
+  const f = fixture(3), seen = []; f.p.onChange(state => seen.push(state));
+  const navigation = f.p.goTo(3);
+  assert.equal(seen[0].navigationTarget, 3);
+  assert.equal(await f.p.goTo(1), false);
+  await f.drain(navigation);
+  assert.ok(seen.filter(state => state.busy).every(state => state.navigationTarget === 3));
+  assert.equal(seen.at(-1).navigationTarget, null);
+});
+test('text files retain long exact content, deduplicate loads, and cache only success', async () => {
+  const text = '  Heading — café\r\n\tIndented code\n\n' + 'word '.repeat(1000) + '\n\n  ';
+  let calls = 0;
+  const store = new ResourceTextStore({baseURL: 'https://example.com/book/', fetchText: async url => {
+    calls++; assert.equal(url, 'https://example.com/book/assets/prompt.txt');
+    return {ok: true, text: async () => text};
+  }});
+  const resource = {type: 'text', src: './assets/prompt.txt'};
+  const values = await Promise.all([store.load(resource), store.load(resource)]);
+  assert.deepEqual(values, [text, text]); assert.equal(calls, 1);
+  assert.equal(await store.load(resource), text); assert.equal(calls, 1);
+  store.dispose();
+});
+test('failed and timed-out text loads can retry; disposal aborts pending requests', async () => {
+  let fail = true;
+  const resource = {type: 'text', src: './prompt.txt'};
+  const store = new ResourceTextStore({baseURL: 'https://example.com/', timeout: 5,
+    fetchText: async () => fail ? {ok: false, status: 404} : {ok: true, text: async () => 'ready'}});
+  await assert.rejects(store.load(resource), /404/);
+  fail = false; assert.equal(await store.load(resource), 'ready'); store.dispose();
+  const stalled = new ResourceTextStore({baseURL: 'https://example.com/', timeout: 5, fetchText: () => new Promise(() => {})});
+  await assert.rejects(stalled.load(resource), /timed out/);
+  stalled.fetchText = async () => ({ok: true, text: async () => 'retried'});
+  assert.equal(await stalled.load(resource), 'retried'); stalled.dispose();
+  const closing = new ResourceTextStore({baseURL: 'https://example.com/', fetchText: () => new Promise(() => {})});
+  const pending = closing.load(resource); closing.dispose();
+  await assert.rejects(pending, /closed/); assert.equal(closing.cache.size, 0);
+});
+test('only explicit HTTP and HTTPS websites can be opened', () => {
+  assert.equal(websiteURL('https://example.com'), 'https://example.com/');
+  assert.equal(websiteURL('http://example.com/path?q=1'), 'http://example.com/path?q=1');
+  for (const input of ['javascript:alert(1)', 'data:text/html,test', '/relative', 'not a URL']) assert.equal(websiteURL(input), null);
 });
 test('index jumps cover-to-cover and back with correct leaves and durations', async () => {
   const f = fixture(3); await f.drain(f.p.goTo(4));

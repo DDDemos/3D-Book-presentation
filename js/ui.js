@@ -1,5 +1,8 @@
 // DOM-only UI: usable even when Three.js or WebGL cannot load.
-export function initUI({ presentation, devMode, retry }) {
+import { initResourcePanel } from "./resource-panel.js?v=6";
+
+export function initUI({ presentation, devMode, retry, resourceOptions = {} }) {
+  const resourcePanel = initResourcePanel({ ...resourceOptions, presentation });
   const $ = id => document.getElementById(id);
   const prev = $("prev-btn"), next = $("next-btn"), indexButton = $("index-toggle-btn");
   const popup = $("index-popup"), grid = $("index-grid"), tooltip = $("index-tooltip");
@@ -120,6 +123,7 @@ export function initUI({ presentation, devMode, retry }) {
     }
     if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.isComposing) return;
     if (!popup.hidden || (editor && !editor.hidden)) return;
+    if (event.target.closest?.("#resource-panel")) return;
     if (event.target.closest?.("button, input, select, textarea, a, [contenteditable]:not([contenteditable='false']), [role='button']")) return;
     if (event.key === "ArrowRight" || event.key === " ") { event.preventDefault(); void presentation.next(); }
     else if (event.key === "ArrowLeft") { event.preventDefault(); void presentation.prev(); }
@@ -259,6 +263,7 @@ export function initUI({ presentation, devMode, retry }) {
   presentation.onChange(render);
   render(presentation.state());
   return {
+    dispose() { resourcePanel.dispose(); },
     setStartupStatus(status) {
       startupLoading = status === "loading";
       $("startup-notice").hidden = status === "ready";

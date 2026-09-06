@@ -13,27 +13,30 @@ const wait = async (condition, message = 'Condition timed out') => {
     await new Promise(resolve => setTimeout(resolve, 25));
   }
 };
-async function fixture({ dev = false, count = 3, fail = false, timeout = false, width = 960, height = 650, landscape = false } = {}) {
-  if (frame) { frame.contentWindow.fixture?.startup.dispose(); frame.contentWindow.fixture?.p.dispose(); frame.remove(); }
+async function fixture({ dev = false, count = 3, fail = false, timeout = false, width = 960, height = 650, landscape = false, withResources = false } = {}) {
+  if (frame) { frame.contentWindow.fixture?.ui.dispose(); frame.contentWindow.fixture?.startup.dispose(); frame.contentWindow.fixture?.p.dispose(); frame.remove(); }
   frame = document.createElement('iframe'); frame.title = 'Presentation test fixture';
   frame.style.width = `${width}px`; frame.style.height = `${height}px`;
   const script = `
-    import { Presentation, slides } from './js/presentation.js?v=5';
-    import { initUI } from './js/ui.js?v=5';
-    import { createStartup } from './js/startup.js?v=5';
+    import { Presentation, slides } from './js/presentation.js?v=6';
+    import { initUI } from './js/ui.js?v=6';
+    import { createStartup } from './js/startup.js?v=6';
     window.addEventListener('error', event => window.fixtureError = event.message);
     window.addEventListener('unhandledrejection', event => window.fixtureError = String(event.reason));
-    const p = new Presentation(Array.from({length: ${count}}, (_, i) => ({...slides[i % slides.length], title: slides[i % slides.length].title + (${count} > 3 ? ' ' + (i + 1) : '')})));
+    const p = new Presentation(Array.from({length: ${count}}, (_, i) => ({...slides[i % slides.length], resources: ${withResources} ? slides[i % slides.length].resources : [], title: slides[i % slides.length].title + (${count} > 3 ? ' ' + (i + 1) : '')})));
     ${landscape ? `p.slides.forEach((slide, i) => { slide.src = '${root.href}tests/landscape.svg'; slide.title = 'Landscape check ' + (i + 1); Object.assign(p.entries[i + 1], slide); });` : ''}
     let startup;
-    const ui = initUI({presentation: p, devMode: ${dev}, retry: () => startup.start()});
+    window.copied = []; window.denyClipboard = false;
+    const ui = initUI({presentation: p, devMode: ${dev}, retry: () => startup.start(), resourceOptions: {
+      writeClipboard: async text => { if (window.denyClipboard) throw new Error('Clipboard denied'); window.copied.push(text); }
+    }});
     let failed = ${fail};
     startup = createStartup({presentation: p, timeout: ${timeout ? 30 : 15000}, onStatus: ui.setStartupStatus,
       loadRuntime: async () => {
         ${timeout ? 'return new Promise(() => {});' : ''}
         if (failed) throw new Error('Simulated CDN failure');
         try {
-          const {createScene} = await import('${root.href}js/scene.js?v=5');
+          const {createScene} = await import('${root.href}js/scene.js?v=6');
           return () => { try { return createScene(p); } catch (error) { window.fixtureError = error.message + " " + error.stack; throw error; } };
         } catch (error) { window.fixtureError = error.message + " " + error.stack; throw error; }
       }});
@@ -41,7 +44,7 @@ async function fixture({ dev = false, count = 3, fail = false, timeout = false, 
     startup.start();
   `;
   frame.srcdoc = shell.replace('<head>', `<head><base href="${root.href}">`)
-    .replace(/<script type="module" src="\.\/js\/main\.js\?v=5"><\/script>/, `<script type="module">${script}<\/script>`);
+    .replace(/<script type="module" src="\.\/js\/main\.js\?v=6"><\/script>/, `<script type="module">${script}<\/script>`);
   document.getElementById('surface').append(frame);
   await wait(() => frame.contentWindow.fixture, 'Fixture did not initialize');
   const f = frame.contentWindow.fixture;
@@ -289,6 +292,146 @@ try {
       await f.p.goTo(0); assertFraming(f, 'front');
     });
   }
+  f = await fixture({withResources: true, width: 1000, height: 700});
+  const longText = 'EXACT PROMPT — café, 世界\n\n    indented code\n\tkeep this tab\n\n' + 'word '.repeat(1000) + '\nhttps://example.org is part of the prompt.\n\n  ';
+  const shortText = '<script>This is literal text, not HTML.</script>\nKeep this line.';
+  const longURL = f.win.URL.createObjectURL(new f.win.Blob([longText], {type: 'text/plain;charset=utf-8'}));
+  const shortURL = f.win.URL.createObjectURL(new f.win.Blob([shortText], {type: 'text/plain;charset=utf-8'}));
+  const resourceCases = [
+    {type: 'text', label: 'Long prompt', src: longURL},
+    {type: 'url', label: 'Website', url: 'https://example.com'},
+    {type: 'text', label: 'Short text', src: shortURL},
+    {type: 'url', label: 'Invalid website', url: 'javascript:alert(1)'},
+    {type: 'text', label: 'Slow prompt', src: './late-prompt-test.txt'},
+    {type: 'text', label: 'Missing prompt', src: './missing-prompt-test.txt'},
+  ];
+  f.p.entries[1].resources = [resourceCases[0], resourceCases[1]];
+  const showResources = async (indices, waitText = true) => {
+    await f.p.goTo(2);
+    f.p.entries[1].resources = indices.map(index => resourceCases[index]);
+    await f.p.goTo(1);
+    if (waitText) await wait(() => !f.$(indices.some(index => resourceCases[index].type === 'text') ? 'resource-copy' : 'resource-link-copy').disabled);
+  };
+  await check('Desktop resources appear beside their slide with a small camera orbit', async () => {
+    await f.p.goTo(2);
+    const plain = f.p.runtime.camera.quaternion.clone();
+    await f.p.goTo(1); await wait(() => !f.$('resource-copy').disabled);
+    assert(f.$('resource-heading').textContent === 'Slide 1 · AI-assisted coding', 'Panel is linked to the wrong slide');
+    const surface = f.$('view-surface').getBoundingClientRect(), panel = f.$('resource-panel').getBoundingClientRect();
+    assert(surface.right < panel.left && panel.width >= 250, 'Desktop panel does not sit to the right');
+    const angle = f.p.runtime.camera.quaternion.angleTo(plain);
+    assert(angle > .08 && angle < .14, 'Resource camera orbit is not approximately six degrees');
+    assertFraming(f, 'content');
+    assert(!f.$('resource-select'), 'Resource selector still exists');
+    assert(f.$('resource-link-section').getBoundingClientRect().bottom <= f.$('resource-text-section').getBoundingClientRect().top, 'Website is not above the prompt');
+    for (const id of ['resource-copy', 'resource-link-copy', 'resource-open']) {
+      const control = f.$(id);
+      assert(control.querySelector('svg') && !control.textContent.trim() && control.getAttribute('aria-label') && control.title, 'Icon action lacks an accessible label or tooltip');
+    }
+  });
+  await check('Long preview fades; Copy preserves all 1000 words and exact whitespace', async () => {
+    assert(f.$('resource-preview').classList.contains('is-overflowing'), 'Long preview has no fade');
+    assert(!f.$('resource-expand').hidden && !f.$('resource-open').hidden, 'Combined prompt and URL actions are incorrect');
+    f.$('resource-copy').click(); await wait(() => f.$('resource-status').textContent === 'Copied');
+    assert(f.win.copied.at(-1) === longText, 'Copy truncated or changed the full text');
+    f.$('resource-expand').click();
+    assert(f.$('resource-preview').classList.contains('is-expanded'), 'Text did not expand');
+    const rect = f.$('resource-text').getBoundingClientRect();
+    assert(rect.height < 350 && f.$('resource-text').scrollHeight > rect.height, 'Expanded prompt is not bounded and scrollable');
+    const action = f.$('resource-copy').getBoundingClientRect(), panel = f.$('resource-panel').getBoundingClientRect();
+    assert(action.bottom <= panel.bottom, 'Copy is hidden below the expanded panel');
+    f.$('resource-text').dispatchEvent(new f.win.KeyboardEvent('keydown', {key:'ArrowRight', bubbles:true}));
+    f.$('resource-text').dispatchEvent(new f.win.KeyboardEvent('keydown', {key:' ', bubbles:true}));
+    assert(f.p.currentIndex === 1 && !f.p.busy, 'Text interaction triggered navigation');
+    f.$('resource-text').scrollTop = 100;
+    f.$('resource-expand').click();
+    assert(f.$('resource-text').scrollTop === 0, 'Collapsed preview did not return to the start');
+  });
+  await check('Short text stays complete and literal; only valid URL items open websites', async () => {
+    await showResources([2]);
+    assert(f.$('resource-link-section').hidden, 'Text-only slide shows a link section');
+    assert(f.$('resource-text').textContent === shortText && !f.$('resource-text').querySelector('script'), 'Text was interpreted as HTML');
+    assert(f.$('resource-expand').hidden && !f.$('resource-preview').classList.contains('is-overflowing'), 'Short text is unnecessarily faded');
+    await showResources([1]);
+    assert(f.$('resource-text-section').hidden, 'URL-only slide shows a text section');
+    const link = f.$('resource-open');
+    assert(!link.hidden && link.href === 'https://example.com/' && link.target === '_blank' && link.rel.includes('noopener'), 'Website link is incorrect');
+    f.$('resource-link-copy').click(); await wait(() => f.$('resource-link-status').textContent === 'Copied');
+    assert(f.win.copied.at(-1) === 'https://example.com', 'Copied URL was changed');
+    await showResources([3]); assert(link.hidden, 'Unsupported URL was made clickable');
+  });
+  await check('Clipboard denial exposes and selects the entire prompt for manual copying', async () => {
+    await showResources([0, 1]); f.win.denyClipboard = true;
+    f.$('resource-copy').click(); await wait(() => !f.$('resource-manual').hidden);
+    const field = f.$('resource-manual-text');
+    assert(field.value === longText && field.selectionStart === 0 && field.selectionEnd === longText.length, 'Manual fallback did not select all text');
+    assert(f.$('resource-status').textContent.includes('Clipboard access is unavailable'), 'Failure was reported as success');
+    f.win.denyClipboard = false;
+  });
+  await check('Stale text responses cannot overwrite a newer item; missing files can retry', async () => {
+    const originalFetch = f.win.fetch;
+    let resolveLate, fail = true;
+    f.win.fetch = (url, options) => String(url).includes('late-prompt-test.txt') ? new Promise(resolve => resolveLate = resolve)
+      : String(url).includes('missing-prompt-test.txt') ? Promise.resolve(new f.win.Response(fail ? 'missing' : 'Recovered text', {status: fail ? 404 : 200}))
+      : originalFetch.call(f.win, url, options);
+    try {
+      await showResources([4, 1], false);
+      await wait(() => resolveLate);
+      assert(!f.$('resource-link-copy').disabled, 'Loading the prompt blocked its URL');
+      await showResources([1]);
+      resolveLate(new f.win.Response('Old response'));
+      await new Promise(resolve => setTimeout(resolve, 50));
+      assert(f.$('resource-text-section').hidden && f.$('resource-link-value').textContent === 'https://example.com', 'Late text replaced the current slide resources');
+      await showResources([5, 1], false);
+      await wait(() => !f.$('resource-retry').hidden);
+      assert(f.$('resource-copy').disabled && !f.p.busy, 'Failed resource blocked navigation or enabled Copy');
+      assert(!f.$('resource-link-copy').disabled && !f.$('resource-open').hidden, 'Failed prompt blocked website actions');
+      fail = false; f.$('resource-retry').click(); await wait(() => !f.$('resource-copy').disabled);
+      assert(f.$('resource-text').textContent === 'Recovered text', 'Resource retry did not recover');
+    } finally { f.win.fetch = originalFetch; }
+  });
+  await check('Index jumps suppress intermediate resources and restore both items on return', async () => {
+    await f.p.goTo(0);
+    f.p.entries[1].resources = [resourceCases[0], resourceCases[1]];
+    const off = f.p.onChange(state => {
+      if (state.busy && state.navigationTarget === 3) {
+        assert(!f.$('stage').classList.contains('has-resources'), 'Intermediate slide opened a resource panel');
+        assert(f.$('resource-copy').disabled && f.$('resource-link-copy').disabled && !f.$('resource-open').hasAttribute('href'), 'Resource action remained active during navigation');
+      }
+    });
+    await f.p.goTo(3); off();
+    assert(f.$('resource-slot').hidden, 'Panel remained on a slide without resources');
+    await f.p.goTo(1); await wait(() => !f.$('resource-copy').disabled);
+    assert(f.$('resource-text').textContent === longText && f.$('resource-link-value').textContent === 'https://example.com', 'Returning to a slide did not restore both resources');
+  });
+  await check('A failed page jump restores the current panel and its camera angle', async () => {
+    const {cache, camera} = f.p.runtime;
+    const before = camera.quaternion.clone(), get = cache.get;
+    const log = f.win.console.error; f.win.console.error = () => {};
+    cache.get = async () => { throw new Error('Simulated page load failure'); };
+    try { assert(await f.p.goTo(2) === false, 'Failed page jump was reported as successful'); }
+    finally { cache.get = get; f.win.console.error = log; }
+    await wait(() => !f.$('resource-copy').disabled);
+    assert(f.p.currentIndex === 1 && f.$('stage').classList.contains('has-resources'), 'Current panel was lost after failure');
+    assert(camera.quaternion.angleTo(before) < .00001, 'Failed jump restored the wrong resource camera angle');
+  });
+  await check('Resources stack below the slide on phones and remain available in reading view', async () => {
+    frame.style.width = '320px'; frame.style.height = '640px';
+    await new Promise(resolve => setTimeout(resolve, 150));
+    const surface = f.$('view-surface').getBoundingClientRect(), panel = f.$('resource-panel').getBoundingClientRect();
+    assert(panel.top >= surface.bottom && f.doc.documentElement.scrollWidth <= 320, 'Phone panel overlaps or overflows the slide');
+    assertFraming(f, 'content');
+    await f.p.setReading(true);
+    assert(!f.$('resource-slot').hidden && f.$('resource-text').textContent === longText, 'Reading view lost resources');
+    f.$('resource-copy').scrollIntoView({block: 'nearest'});
+    assert(f.$('resource-copy').getBoundingClientRect().bottom <= 640, 'Phone Copy action cannot be reached');
+    frame.style.width = '568px'; frame.style.height = '320px';
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert(f.doc.documentElement.scrollWidth <= 568, 'Short landscape panel overflows horizontally');
+    await f.p.goTo(2);
+    assert(f.$('stage').scrollTop === 0 && f.$('resource-slot').hidden, 'Phone navigation did not return to the slide');
+    f.win.URL.revokeObjectURL(longURL); f.win.URL.revokeObjectURL(shortURL);
+  });
   f = await fixture({ fail: true });
   await check('A failed Three.js import leaves a usable reading view and Retry', async () => {
     assert(!f.$('retry-btn').hidden && !f.$('reading-view').hidden, 'Fallback unavailable');
@@ -301,6 +444,13 @@ try {
   await check('Startup deadline exposes reading view instead of a stuck loader', async () => {
     assert(!f.$('retry-btn').hidden && f.p.reading, 'Timeout fallback unavailable');
     await f.p.goTo(3); assert(f.$('reading-title').textContent === 'Sharing and iteration', 'Timeout blocked navigation');
+  });
+  f = await fixture({fail: true, withResources: true});
+  await check('Prompts and copy controls work when Three.js cannot load', async () => {
+    await f.p.goTo(1); await wait(() => !f.$('resource-copy').disabled);
+    assert(f.p.reading && !f.$('resource-slot').hidden, 'Fallback does not include the resource panel');
+    f.$('resource-copy').click(); await wait(() => f.$('resource-status').textContent === 'Copied');
+    assert(f.win.copied.at(-1).includes('EXAMPLE PROMPT'), 'Fallback copied the wrong content');
   });
   document.getElementById('result').textContent = `${passed} browser checks passed.`;
   const preview = document.getElementById('preview');

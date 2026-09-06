@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Intro to Vibe Coding</title>
 <meta name="description" content="An interactive book presentation with an accessible reading view." />
-<link rel="stylesheet" href="./styles.css?v=5" />
+<link rel="stylesheet" href="./styles.css?v=6" />
 <script type="importmap">
 {
   "imports": {
@@ -24,6 +24,7 @@
       </div>
     </header>
     <main class="stage" id="stage" aria-label="Presentation">
+      <div id="view-surface" class="view-surface">
       <div id="canvas-container" class="canvas-container" hidden>
         <canvas id="book-canvas" aria-hidden="true"></canvas>
       </div>
@@ -33,6 +34,38 @@
         <p id="reading-description"></p>
       </article>
       <p id="action-error" class="action-error" role="alert" hidden></p>
+      </div>
+      <div id="resource-slot" class="resource-slot" hidden>
+        <aside id="resource-panel" class="resource-panel" aria-labelledby="resource-heading">
+          <h2 id="resource-heading"></h2>
+          <section id="resource-link-section" aria-labelledby="resource-link-label" hidden>
+            <h3 id="resource-link-label"></h3>
+            <div class="resource-link-row">
+              <p id="resource-link-value"></p>
+              <div class="resource-actions">
+                <button id="resource-link-copy" class="icon-btn resource-icon" type="button" aria-label="Copy URL" title="Copy URL" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+                <a id="resource-open" class="icon-btn resource-icon" target="_blank" rel="noopener noreferrer" aria-label="Open website in a new tab" title="Open website in a new tab" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3h7v7m0-7L10 14M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/></svg></a>
+              </div>
+            </div>
+            <p id="resource-link-status" class="resource-status" role="status" aria-live="polite"></p>
+          </section>
+          <section id="resource-text-section" aria-labelledby="resource-label" hidden>
+          <div class="resource-item-heading">
+            <h3 id="resource-label"></h3>
+            <button id="resource-copy" class="icon-btn resource-icon" type="button" aria-label="Copy full text" title="Copy full text" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+          </div>
+          <div id="resource-preview" class="resource-preview" hidden>
+            <pre id="resource-text" tabindex="0" aria-labelledby="resource-label"></pre>
+          </div>
+          <button id="resource-expand" class="resource-expand" type="button" aria-expanded="false" aria-controls="resource-text" hidden>Show full text</button>
+          <button id="resource-retry" class="icon-btn" type="button" hidden>Retry</button>
+          <p id="resource-status" class="resource-status" role="status" aria-live="polite"></p>
+          </section>
+          <label id="resource-manual" class="resource-manual" hidden>Full text for manual copying
+            <textarea id="resource-manual-text" readonly rows="6"></textarea>
+          </label>
+        </aside>
+      </div>
     </main>
     <nav class="controls" aria-label="Page navigation">
       <button id="prev-btn" class="nav-btn" type="button" aria-label="Previous page"><span aria-hidden="true">←</span> Previous</button>
@@ -52,6 +85,6 @@
     </footer>
   </div>
   <noscript><p class="noscript-note">Enable JavaScript to navigate this presentation. You can also open the slide images in the assets/slides folder.</p></noscript>
-  <script type="module" src="./js/main.js?v=5"></script>
+  <script type="module" src="./js/main.js?v=6"></script>
 </body>
 </html>

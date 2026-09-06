@@ -1,0 +1,15 @@
+EXAMPLE PROMPT — replace this file with your own prompt.
+
+Help me build a small, accessible task-list website using plain HTML, CSS, and JavaScript.
+
+Before writing code, ask me about the people who will use it and the most important task they need to complete. Then propose a simple implementation plan.
+
+The website should let someone:
+    1. Add a task with a short title.
+    2. Mark a task as complete.
+    3. Filter between all, active, and completed tasks.
+    4. Keep their tasks after refreshing the page.
+
+Use clear labels, visible keyboard focus, and a layout that works on a phone. Explain any assumptions you make, and include a short checklist for testing the finished website.
+
+Keep the first version small. After it works, suggest one useful improvement and explain why it would help.

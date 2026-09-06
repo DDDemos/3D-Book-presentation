@@ -1,10 +1,10 @@
 // Optional WebGL runtime; the application can run without this entire module graph.
 import * as THREE from "three";
-import { Book3D } from "./book.js?v=5";
-import { loadImage, loadSlideTexture, loadCoverTexture, makePageBackTexture } from "./textures.js?v=5";
-import { SlideTextureCache } from "./texture-cache.js?v=5";
-import { createRenderLoop } from "./render-loop.js?v=5";
-import { createCameraRig } from "./camera.js?v=5";
+import { Book3D } from "./book.js?v=6";
+import { loadImage, loadSlideTexture, loadCoverTexture, makePageBackTexture } from "./textures.js?v=6";
+import { SlideTextureCache } from "./texture-cache.js?v=6";
+import { createRenderLoop } from "./render-loop.js?v=6";
+import { createCameraRig } from "./camera.js?v=6";
 
 export function createScene(presentation) {
   const container = document.getElementById("canvas-container");
@@ -58,7 +58,10 @@ export function createScene(presentation) {
   const book = new Book3D(scene);
   book.setSlideCount(presentation.slides.length);
   const cameraRig = createCameraRig(camera, book, presentation.slides.length);
-  cameraRig.setState(presentation.contentIndex);
+  const hasPanel = (entryIndex = presentation.navigationTarget ?? presentation.currentIndex) => !!presentation.entries[entryIndex]?.resources?.length;
+  let cameraPanel = hasPanel();
+  const wantsPanel = () => window.matchMedia("(min-width: 961px)").matches && cameraPanel;
+  cameraRig.setState(presentation.contentIndex, {panel: wantsPanel()});
   let disposed = false;
   let viewportDirty = true;
   function render() {
@@ -112,7 +115,7 @@ export function createScene(presentation) {
     camera.updateProjectionMatrix();
     const size = renderer.getSize(new THREE.Vector2());
     if (size.x !== w || size.y !== h) renderer.setSize(w, h, false);
-    cameraRig.resize();
+    cameraRig.resize({panel: wantsPanel()});
     viewportDirty = false;
   }
   function resize() {
@@ -127,9 +130,10 @@ export function createScene(presentation) {
   resize();
   return {
     book, cache, camera, cameraRig, ready, invalidate: loop.invalidate,
-    setCameraState(index) { cameraRig.setState(index); loop.invalidate(); },
+    setCameraState(index) { cameraPanel = hasPanel(index + 1); cameraRig.setState(index, {panel: wantsPanel()}); loop.invalidate(); },
     transitionCamera(index, options) {
-      const completion = cameraRig.transitionTo(index, options);
+      cameraPanel = hasPanel();
+      const completion = cameraRig.transitionTo(index, {...options, panel: wantsPanel()});
       loop.invalidate();
       return completion;
     },

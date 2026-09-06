@@ -4,17 +4,19 @@ const ease = t => t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
 
 /** Automatic cover/page framing; no drag, wheel, or device-orientation controls. */
 export function createCameraRig(camera, book, slideCount) {
-  const kindFor = index => index < 0 ? "front" : index >= slideCount ? "back" : "content";
+  const kindFor = (index, panel) => index < 0 ? "front" : index >= slideCount ? "back" : panel ? "content-panel" : "content";
   function pose(kind) {
-    const bounds = book.getViewBounds(kind);
+    const content = kind.startsWith("content");
+    const bounds = book.getViewBounds(content ? "content" : kind);
     const target = bounds.getCenter(new THREE.Vector3());
-    const direction = new THREE.Vector3(...(kind === "content" ? [0.018, 0.045, 1] : [0, 0.12, 1])).normalize();
+    const direction = new THREE.Vector3(...(content ? [kind === "content-panel" ? 0.124 : 0.018, 0.045, 1] : [0, 0.12, 1])).normalize();
     // Screen-up along the page's width makes the portrait page a landscape surface.
-    const up = new THREE.Vector3(...(kind === "content" ? [1, 0, 0] : [0, 1, 0]));
+    const up = new THREE.Vector3(...(content ? [1, 0, 0] : [0, 1, 0]));
     const matrix = new THREE.Matrix4().lookAt(target.clone().add(direction), target, up);
     return { bounds, target, rotation: new THREE.Quaternion().setFromRotationMatrix(matrix), focus: kind === "front" ? 0 : 1 };
   }
   let kind = "front";
+  let index = -1, panel = false;
   let current = pose(kind);
   let animation = null;
   let frame = { left: -1, right: 1, bottom: -1, top: 1 };
@@ -61,15 +63,17 @@ export function createCameraRig(camera, book, slideCount) {
     animation = null;
     pending?.resolve();
   }
-  function setState(index) {
+  function setState(nextIndex, { panel: nextPanel = false } = {}) {
     finish();
-    kind = kindFor(index);
+    index = nextIndex; panel = nextPanel;
+    kind = kindFor(index, panel);
     current = pose(kind);
     apply(current);
   }
-  function transitionTo(index, { duration = 900, reducedMotion = false } = {}) {
-    const next = kindFor(index);
-    if (reducedMotion || duration <= 0) { setState(index); return Promise.resolve(); }
+  function transitionTo(nextIndex, { duration = 900, reducedMotion = false, panel: nextPanel = false } = {}) {
+    index = nextIndex; panel = nextPanel;
+    const next = kindFor(index, panel);
+    if (reducedMotion || duration <= 0) { setState(index, {panel}); return Promise.resolve(); }
     if (next === kind && !animation) return Promise.resolve();
     finish();
     kind = next;
@@ -91,6 +95,14 @@ export function createCameraRig(camera, book, slideCount) {
     apply(current);
     if (progress === 1) finish();
   }
-  return { setState, transitionTo, update, resize: () => apply(current),
+  function resize({ panel: nextPanel = panel } = {}) {
+    if (nextPanel !== panel) {
+      panel = nextPanel; kind = kindFor(index, panel);
+      if (animation) animation.to = pose(kind);
+      else current = pose(kind);
+    }
+    apply(current);
+  }
+  return { setState, transitionTo, update, resize,
     getFrame: () => ({ ...frame }), isAnimating: () => !!animation, dispose: finish };
 }

@@ -1,8 +1,14 @@
 // Content and navigation deliberately have no Three.js dependency.
+import { normalizeResources } from "./resources.js?v=6";
 export const DEV_MODE = false;
 export const presentationTitle = "Intro to Vibe Coding";
 export const slides = [
-  { src: "./assets/slides/slide-01.png", title: "AI-assisted coding", description: "A code editor with angle brackets and an AI chip, illustrating AI-assisted software development." },
+  { src: "./assets/slides/slide-01.png", title: "AI-assisted coding", description: "A code editor with angle brackets and an AI chip, illustrating AI-assisted software development.",
+    resources: [
+      { type: "text", label: "Example prompt", src: "./assets/text/example-prompt.txt" },
+      { type: "url", label: "Example website", url: "https://example.com" },
+    ],
+  },
   { src: "./assets/slides/slide-02.png", title: "Human and AI collaboration", description: "A person and a robot beneath overlapping speech bubbles, illustrating a conversation between people and AI." },
   { src: "./assets/slides/slide-03.png", title: "Sharing and iteration", description: "Two illustrated documents connected by arrows, representing exchanging content and iterating on ideas." },
 ];
@@ -16,7 +22,7 @@ export const bookConfig = {
 
 export class Presentation {
   constructor(content = slides, covers = bookConfig) {
-    this.slides = content.map((slide, i) => ({ ...slide, title: slide.title?.trim() || `Slide ${i + 1}` }));
+    this.slides = content.map((slide, i) => ({ ...slide, title: slide.title?.trim() || `Slide ${i + 1}`, resources: normalizeResources(slide.resources) }));
     this.entries = [
       { key: "frontCover", title: "Front cover", src: covers.frontCover },
       ...this.slides.map((slide, i) => ({ ...slide, key: `slide:${i}`, number: i + 1 })),
@@ -26,6 +32,7 @@ export class Presentation {
     this.total = this.entries.length;
     this.currentIndex = 0;
     this.transitionIndex = null;
+    this.navigationTarget = null;
     this.busy = false;
     this.reading = true;
     this.runtime = null;
@@ -47,6 +54,7 @@ export class Presentation {
       index: this.currentIndex, contentIndex: this.contentIndex, total: this.total,
       entry: this.entries[this.currentIndex], busy: this.busy,
       displayIndex: this.transitionIndex ?? this.currentIndex,
+      navigationTarget: this.navigationTarget,
       isAnimating: !!(this.runtime?.book.isAnimating() || this.runtime?.cameraRig?.isAnimating()), reading: this.reading,
       canPrev: !this.busy && this.currentIndex > 0,
       canNext: !this.busy && this.currentIndex < this.total - 1,
@@ -62,9 +70,10 @@ export class Presentation {
     runtime.cache.preloadAround(this.contentIndex);
     this._emit();
   }
-  async _run(action) {
+  async _run(action, navigationTarget = null) {
     if (this.busy || this.disposed) return false;
     this.busy = true;
+    this.navigationTarget = navigationTarget;
     this.error = "";
     this._emit();
     try { await action(); return true; }
@@ -77,7 +86,7 @@ export class Presentation {
         this.runtime.invalidate();
       }
       return false;
-    } finally { this.transitionIndex = null; this.busy = false; this._emit(); }
+    } finally { this.transitionIndex = null; this.navigationTarget = null; this.busy = false; this._emit(); }
   }
   next() { return this._navigate(this.currentIndex + 1, false); }
   prev() { return this._navigate(this.currentIndex - 1, false); }
@@ -102,7 +111,7 @@ export class Presentation {
       }
       const duration = jump ? Math.min(180, 2000 / Math.abs(target - this.currentIndex)) : undefined;
       while (this.currentIndex !== target) await this._step(target > this.currentIndex ? 1 : -1, duration);
-    });
+    }, target);
   }
   async _step(direction, duration) {
     const { book, cache, invalidate } = this.runtime;

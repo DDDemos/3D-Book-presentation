@@ -63,6 +63,61 @@ opaque image backgrounds remain part of the artwork. The dev editor uses the sam
 for uploaded slides, and reading view displays the same paper behind the original slide image.
 The paper image is loaded once per 3D runtime. If it is unavailable, plain cream paper is used.
 
+## Prompts, text, and website links
+
+Attach an optional `resources` array **inside the slide object** in `js/presentation.js`:
+
+```js
+{
+  src: "./assets/slides/slide-01.png",
+  title: "AI-assisted coding",
+  description: "An introduction to AI-assisted coding.",
+  resources: [
+    { type: "text", label: "Example prompt", src: "./assets/text/example-prompt.txt" },
+    { type: "url", label: "Example website", url: "https://example.com" }
+  ]
+}
+```
+
+Store long prompts in UTF-8 `.txt` files. File paths are relative to the presentation page,
+including when hosted in a project subdirectory. The association is explicit: it does not
+depend on page numbers, matching filenames, or slide titles. Reorder the entire slide object
+to move its image and resources together. A slide can contain one text resource, one URL,
+or both. The URL always appears above the text, regardless of their array order; there is
+no selector. Configure at most one item of each type (the first of each type is displayed).
+Omit `resources` or use an empty array for slides that need no panel.
+
+The first sample slide includes a clearly labeled example prompt and an example.com URL.
+Replace the file contents, labels, and URL with your own material. The other sample slides
+have no resources. Resource text is separate from the slide's accessible `description`.
+
+On desktops wider than 960px, the panel sits to the right and the book shifts left with a
+slight additional camera angle. On smaller screens the panel sits below the slide; scroll
+the presentation area to reach it. Slides without resources return to the centered view.
+Reading view uses the same panel, including when WebGL or Three.js is unavailable.
+
+- When both are configured, the website and prompt are visible together. Each has its own
+  copy icon; the website also has an external-link icon. Icons have hover tooltips and
+  accessible names for screen readers.
+- Short text is shown completely. Longer text has an approximately eight-line preview with a
+  faded ending. **Show full text** opens a bounded, scrollable view; **Collapse** restores the preview.
+- The **copy icon** always uses that item's complete original text, including paragraphs, indentation, Unicode,
+  and trailing whitespace. Text is rendered literally; HTML and Markdown are not executed.
+- **Copied** appears only after clipboard access succeeds. If the browser denies access,
+  the panel selects the complete text in a field so you can copy it manually. Automatic
+  clipboard access normally requires HTTPS or localhost and browser permission.
+- The **external-link icon** appears only for URL items with an HTTP or HTTPS address. It opens
+  a new tab and leaves the presentation at its current slide. A URL inside a prompt does not
+  turn that prompt into a website link.
+
+Text files load when the slide appears and successful responses are cached for the current tab. A failed
+request or a 10-second timeout shows **Retry** and does not block slide navigation. During
+navigation resource controls are unavailable; index jumps show only the final destination's
+resources. Late loading or copying completions cannot replace a newer slide's contents or feedback.
+Website actions remain usable while the accompanying prompt loads or if its load fails.
+
+Resource editing is file/configuration based. The temporary image editor does not edit or save prompts.
+
 ## Navigation
 
 - **Previous / Next:** one normal page turn (about 900ms).
@@ -131,6 +186,8 @@ not implemented.
 - `index.html`, `styles.css`: shared page shell, controls, popup, reading view, and styling.
 - `js/presentation.js`: code configuration, view/page state, navigation lock, upload ownership.
 - `js/ui.js`: DOM-only controls, accessible index, reading view, and dev-only editor.
+- `js/resource-panel.js`, `js/resources.js`: slide-linked resource panel, clipboard actions,
+  website validation, and cached plain-text loading.
 - `js/main.js`, `js/startup.js`: lightweight entry point, startup deadline, retry and cleanup.
 - `js/scene.js`, `js/camera.js`: optional Three.js runtime, lighting, automatic camera poses,
   eased camera transitions, and viewport fitting.
@@ -157,6 +214,8 @@ only inside their own frames; they do not change the production configuration.
 The labeled `tests/landscape.svg` fixture checks 16:9 orientation, complete corner visibility,
 and uploaded replacements. Camera checks cover framing, resize during rotation, cover
 transitions, and the absence of continuing idle frames.
+Resource checks cover 1,000-word exact copying, clipboard-denied manual selection, overflow
+previews, URL actions, stale responses, retries, responsive panels, and reading-only startup.
 After the checks pass, use **Inspect landscape fixture** to visually inspect the labeled
 slide in desktop, narrow portrait, or short landscape viewports using the normal controls.
 
