@@ -30,8 +30,10 @@ export const slides = [
 ];
 export const bookConfig = {
   frontCover: "./assets/book/cover-front.png?v=2",
+  frontCoverInner: "./assets/book/cover-front-inner.png",
   backCover: "./assets/book/cover-back.png",
   spine: "./assets/book/spine.png",
+  pageTexture: "./assets/book/PageTexture.png",
 };
 ```
 
@@ -42,11 +44,24 @@ plain text displayed below the image in reading view. Blank or missing titles be
 so the content is available to screen readers. Images are not automatically transcribed.
 
 The three supplied slides are sample artwork. The book uses the supplied leather-and-gold
-front cover, back cover, and spine PNGs. The content pages
-are 3:4 portrait; other image shapes are contained with paper-colored margins. Cover and spine textures retain the entire source image, fitted to their mesh surfaces
+front cover, back cover, and spine PNGs. The physical pages remain 3:4 portrait, but the
+content camera rotates 90° to present the right page as a 4:3 landscape surface. Supply
+slide images upright in landscape orientation (16:9 recommended); composition rotates
+the artwork to match the camera automatically. Images fit without cropping or stretching,
+so widescreen slides have additional paper above and below them. The existing square
+sample images still work. Cover and spine textures retain the entire source image, fitted to their mesh surfaces
 without cropping the artwork. The cover boards are 75% thicker than the original prototype,
 with rounded corners, beveled leather edges, and a slight overhang beyond the paper pages. Relative asset paths
 work at a domain root or in a GitHub Pages project subdirectory.
+
+`bookConfig.frontCoverInner` supplies the inside lining visible when the front cover opens.
+It is separate from the exterior title artwork; the back cover keeps its existing material.
+
+`bookConfig.pageTexture` is the default paper for every page front, page back, and page turn.
+Slide artwork is contained on top with a 6% paper margin. Transparent pixels reveal the paper;
+opaque image backgrounds remain part of the artwork. The dev editor uses the same composition
+for uploaded slides, and reading view displays the same paper behind the original slide image.
+The paper image is loaded once per 3D runtime. If it is unavailable, plain cream paper is used.
 
 ## Navigation
 
@@ -66,16 +81,28 @@ work at a domain root or in a GitHub Pages project subdirectory.
   navigation requests are ignored until the current operation finishes.
 
 Covers remain the first and last positions. Empty and single-slide presentations are supported.
-The camera stays fixed at a three-quarter angle and fits the book and its turning-page envelope
-on resize. With reduced motion enabled, index jumps are immediate and ordinary page turns
-use a shorter, gentler animation.
+The front cover is centered almost straight on, slightly elevated to reveal its thickness.
+The presentation heading appears only here; it fades away and releases its space when the
+book opens. The camera rotates smoothly into a nearly straight-on landscape view of the
+right page, with a little cover and paper edge visible. It stays steady between slides and
+returns to an upright portrait view at the back cover, without restoring the heading.
+A background-colored matte around the focused board keeps the unused half of the spread
+out of view even on tall phone screens or wide cover views.
+Cover-boundary camera movement runs alongside the page animation at the same duration;
+navigation remains locked until both finish. Each pose fits the available viewport on resize,
+including while rotating. There are no drag or wheel camera controls.
+
+With reduced motion enabled, camera poses change immediately, index jumps are immediate,
+and ordinary page turns use a shorter, gentler animation. Returning from reading view or
+recovering 3D restores both the book and camera directly to the current position.
 
 ## Reading view and recovery
 
 **Reading view** displays the current original image, heading, and optional description.
 It shares the index and navigation controls with 3D; page changes are immediate. Switching
 back to **3D view** restores the current page without replaying intervening flips. Covers are
-included. Missing images show an inline message while titles and descriptions remain readable.
+included. Content images remain upright on a landscape paper surface; covers stay portrait.
+Missing images show an inline message while titles and descriptions remain readable.
 
 Reading view initializes independently of Three.js. If the CDN import, WebGL initialization,
 or startup fails—or takes longer than 15 seconds—the presentation stays usable in reading view
@@ -105,7 +132,8 @@ not implemented.
 - `js/presentation.js`: code configuration, view/page state, navigation lock, upload ownership.
 - `js/ui.js`: DOM-only controls, accessible index, reading view, and dev-only editor.
 - `js/main.js`, `js/startup.js`: lightweight entry point, startup deadline, retry and cleanup.
-- `js/scene.js`: optional Three.js runtime, camera, lighting, and resize handling.
+- `js/scene.js`, `js/camera.js`: optional Three.js runtime, lighting, automatic camera poses,
+  eased camera transitions, and viewport fitting.
 - `js/book.js`: procedural covers, spine, page stacks, bending pages, and direct layout restoration.
 - `js/textures.js`, `js/texture-cache.js`: image composition and nearby-slide caching with
   separately retained uploaded textures.
@@ -126,6 +154,11 @@ Open `http://localhost:8000/tests/browser.html` to run the browser integration c
 They exercise the real 3D runtime and image-upload handler, including dev mode, longer decks,
 reading-view recovery, and narrow portrait/landscape layouts. Test fixtures enable dev mode
 only inside their own frames; they do not change the production configuration.
+The labeled `tests/landscape.svg` fixture checks 16:9 orientation, complete corner visibility,
+and uploaded replacements. Camera checks cover framing, resize during rotation, cover
+transitions, and the absence of continuing idle frames.
+After the checks pass, use **Inspect landscape fixture** to visually inspect the labeled
+slide in desktop, narrow portrait, or short landscape viewports using the normal controls.
 
 Manual browser acceptance checks should include index clicks and focus/hover names, keyboard
 navigation, every cover/content position, reading/3D synchronization, narrow layouts, browser

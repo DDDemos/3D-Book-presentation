@@ -31,7 +31,10 @@ function fixture(n = 3, loader = async (_, i) => texture(i)) {
     setFrontCoverTexture(t) { this.front = t; },
   };
   const cache = new SlideTextureCache(p.slides, loader, p.sources);
-  const runtime = { book, cache, ready: Promise.resolve(), invalidate() {}, setActive() {}, disposed: 0, dispose() { this.disposed++; cache.dispose(); } };
+  const runtime = { book, cache, ready: Promise.resolve(), invalidate() {}, setActive() {},
+    setCameraState(i) { this.cameraIndex = i; },
+    transitionCamera(i, options) { this.cameraIndex = i; this.cameraOptions = options; return Promise.resolve(); },
+    disposed: 0, dispose() { this.disposed++; cache.dispose(); } };
   p.attachRuntime(runtime, null); p.reading = false;
   const finish = async () => { assert.ok(active, 'a transition should be active'); const done = active.onComplete; active = null; done(); await flush(); };
   const drain = async promise => { for (let i = 0; i < n + 5 && p.busy; i++) { await flush(); if (active) await finish(); } return promise; };
@@ -68,9 +71,12 @@ test('reading navigation and reduced-motion jumps restore direct positions', asy
   const f = fixture(3); await f.p.setReading(true); await f.p.goTo(3);
   assert.equal(f.turns.length, 0); await f.p.setReading(false);
   assert.equal(f.book.index, 2); assert.equal(f.book.texture.label, 2);
+  assert.equal(f.runtime.cameraIndex, 2);
   f.p.reducedMotion = () => true; await f.p.goTo(0);
   assert.equal(f.book.index, -1); assert.equal(f.turns.length, 0);
+  assert.equal(f.runtime.cameraIndex, -1);
   const normal = f.p.next(); await flush(); assert.equal(f.turns[0].reducedMotion, true);
+  assert.equal(f.runtime.cameraOptions.reducedMotion, true);
   await f.finish(); await normal;
 });
 test('empty and single-slide presentations never request invalid image indices', async () => {
@@ -86,6 +92,27 @@ test('failed texture load releases lock and keeps the committed index', async ()
   const original = console.error; console.error = () => {};
   try { assert.equal(await f.p.next(), false); } finally { console.error = original; }
   assert.equal(f.p.currentIndex, 0); assert.equal(f.p.busy, false); assert.ok(f.p.error);
+  assert.equal(f.runtime.cameraIndex, -1); assert.equal(f.p.state().displayIndex, 0);
+});
+test('camera and book finish together before unlocking; heading follows the destination', async () => {
+  const f = fixture(1); const camera = deferred();
+  f.runtime.transitionCamera = (i, options) => {
+    assert.equal(i, 0); assert.equal(options.duration, 900); return camera.promise;
+  };
+  const navigation = f.p.next(); await flush();
+  assert.equal(f.p.currentIndex, 0); assert.equal(f.p.state().displayIndex, 1);
+  await f.finish();
+  assert.equal(f.p.busy, true); assert.equal(await f.p.next(), false);
+  camera.resolve(); await navigation;
+  assert.equal(f.p.currentIndex, 1); assert.equal(f.p.busy, false);
+});
+test('failed camera transition restores the committed book and camera', async () => {
+  const f = fixture(1);
+  f.runtime.transitionCamera = () => Promise.reject(new Error('expected camera failure'));
+  const original = console.error; console.error = () => {};
+  try { assert.equal(await f.p.next(), false); } finally { console.error = original; }
+  assert.equal(f.p.busy, false); assert.equal(f.book.index, -1);
+  assert.equal(f.runtime.cameraIndex, -1); assert.equal(f.p.state().displayIndex, 0);
 });
 test('overrides outlive eviction and beat a pending original load', async () => {
   const gate = deferred(); const cache = new SlideTextureCache(content(10), () => gate.promise);

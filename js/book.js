@@ -12,7 +12,7 @@
 // ============================================================================
 
 import * as THREE from "three";
-import { makePageBackTexture } from "./textures.js?v=4";
+import { makePageBackTexture } from "./textures.js?v=5";
 
 export const PAGE_WIDTH = 1.5;
 export const PAGE_HEIGHT = 2.0;
@@ -72,6 +72,19 @@ function buildCoverGeometry(side) {
     }
   }
   uv.needsUpdate = true;
+  if (side < 0) {
+    // The +Z cap is the visible inside when open; -Z is the outside when closed.
+    const groups = geometry.groups.slice();
+    geometry.clearGroups();
+    for (const group of groups) {
+      for (let i = group.start; i < group.start + group.count; i += 3) {
+        const material = group.materialIndex === 0 && normal.getZ(i) > 0 ? 2 : group.materialIndex;
+        const previous = geometry.groups.at(-1);
+        if (previous && previous.materialIndex === material && previous.start + previous.count === i) previous.count += 3;
+        else geometry.addGroup(i, 3, material);
+      }
+    }
+  }
   geometry.translate(side * COVER_WIDTH / 2, 0, -COVER_THICKNESS / 2 + COVER_BEVEL);
   return geometry;
 }
@@ -219,15 +232,14 @@ export class Book3D {
     // The front cover doubles as the book's first "page": closed (rotation
     // PI) it sits on the right showing its art to the viewer; opening it
     // swings it to rotation 0, its natural build orientation, on the left.
-    // It's a solid box, so a 180-degree spin swaps which of its two opposite
-    // Z faces is the one physically facing the camera (the far face is
-    // occluded by the box's own bulk, regardless of material.side) — so the
-    // art material goes on BOTH those faces, not just the "outer" one.
+    // Separate cap materials keep the title on the exterior and lining on the interior.
     this.frontCoverMat = neutralMaterial(null);
+    this.frontCoverInnerMat = neutralMaterial(null);
     const leatherEdge = new THREE.MeshStandardMaterial({ color: 0x231a12, roughness: 0.72 });
     this.frontCover = new THREE.Mesh(frontCoverGeo, [
       this.frontCoverMat,
       leatherEdge,
+      this.frontCoverInnerMat,
     ]);
     this.frontCover.rotation.y = Math.PI; // starts closed
     this.group.add(this.frontCover);
@@ -296,6 +308,17 @@ export class Book3D {
     this._layoutStacks(-1);
   }
 
+  /** Bounds of the right-hand surface and its board, excluding the blank left half. */
+  getViewBounds(kind) {
+    const depth = this._numSlides * (PAGE_THICKNESS + LAYER_GAP) + 0.02;
+    return new THREE.Box3(
+      new THREE.Vector3(-SPINE_WIDTH / 2, -COVER_HEIGHT / 2,
+        kind === "back" ? -COVER_THICKNESS - LAYER_GAP : -depth - COVER_THICKNESS),
+      new THREE.Vector3(COVER_WIDTH, COVER_HEIGHT / 2,
+        kind === "front" ? COVER_THICKNESS + LAYER_GAP : 0),
+    );
+  }
+
   /**
    * Assigns `texture` to `material.map`, disposing whatever texture was
    * there before. Only safe for slots book.js owns exclusively (covers,
@@ -338,12 +361,27 @@ export class Book3D {
     this._swapMap(this.frontCoverMat, texture);
   }
 
+  setFrontCoverInnerTexture(texture) {
+    this._swapMap(this.frontCoverInnerMat, texture);
+  }
+
   setBackCoverTexture(texture) {
     this._swapMap(this.backCoverMat, texture);
   }
 
   setSpineTexture(texture) {
     this._swapMap(this.spineMat, texture);
+  }
+
+  setPaperTexture(texture) {
+    const old = this._pageBackTexture;
+    this._pageBackTexture = texture;
+    for (const material of [this.leftPageMat, this.flipBackMat, this.leftStackMat, this.rightStackMat]) {
+      material.map = texture;
+      material.color.set(0xffffff);
+      material.needsUpdate = true;
+    }
+    if (old && old !== texture) old.dispose();
   }
 
   // -------------------------------------------------------------------
@@ -566,7 +604,7 @@ export class Book3D {
       if (node.material) for (const mat of [].concat(node.material)) materials.add(mat);
     });
     // Slide textures belong to the cache; only book-owned textures go here.
-    for (const tex of new Set([this._pageBackTexture, this.frontCoverMat.map, this.backCoverMat.map, this.spineMat.map])) tex?.dispose();
+    for (const tex of new Set([this._pageBackTexture, this.frontCoverMat.map, this.frontCoverInnerMat.map, this.backCoverMat.map, this.spineMat.map])) tex?.dispose();
     for (const geo of geometries) geo.dispose();
     for (const mat of materials) mat.dispose();
     this.group.removeFromParent();

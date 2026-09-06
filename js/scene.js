@@ -1,9 +1,10 @@
 // Optional WebGL runtime; the application can run without this entire module graph.
 import * as THREE from "three";
-import { Book3D } from "./book.js?v=4";
-import { loadSlideTexture, loadCoverTexture } from "./textures.js?v=4";
-import { SlideTextureCache } from "./texture-cache.js?v=4";
-import { createRenderLoop } from "./render-loop.js?v=4";
+import { Book3D } from "./book.js?v=5";
+import { loadImage, loadSlideTexture, loadCoverTexture, makePageBackTexture } from "./textures.js?v=5";
+import { SlideTextureCache } from "./texture-cache.js?v=5";
+import { createRenderLoop } from "./render-loop.js?v=5";
+import { createCameraRig } from "./camera.js?v=5";
 
 export function createScene(presentation) {
   const container = document.getElementById("canvas-container");
@@ -21,15 +22,10 @@ export function createScene(presentation) {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xe6e1d6);
+  renderer.setClearColor(scene.background);
   scene.fog = new THREE.Fog(0xe6e1d6, 8, 16);
 
   const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
-  const initialTarget = new THREE.Vector3(0, 0.05, 0);
-  // Fixed 3/4 viewing direction; distance is refit to the viewport's aspect
-  // ratio (see fitCameraDistance) so the whole open book stays in frame on
-  // both wide desktop windows and narrow phone screens.
-  const viewDir = new THREE.Vector3(2.8, 1.9, 4.0).normalize();
-  camera.position.copy(viewDir).multiplyScalar(6).add(initialTarget);
 
   // ---------------------------------------------------------------------
   // Lighting: hemisphere fill + key directional + subtle rim/fill light.
@@ -59,53 +55,40 @@ export function createScene(presentation) {
   rim.position.set(0, 2.5, -2);
   scene.add(rim);
 
-  // ---------------------------------------------------------------------
-  // Camera: fully static. It never responds to drag/scroll input — only
-  // its distance is recomputed on resize, to keep the whole book framed at
-  // any viewport aspect ratio (see fitCameraDistance).
-  // ---------------------------------------------------------------------
-  camera.lookAt(initialTarget);
-
-  /** Distance needed for the vertical FOV, at the current aspect, to frame the open book. */
-  function fittedDistance() {
-    const tangent = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
-    const right = new THREE.Vector3().crossVectors(camera.up, viewDir).normalize();
-    const up = new THREE.Vector3().crossVectors(viewDir, right).normalize();
-    const depth = presentation.slides.length * 0.0051 + 0.2;
-    let distance = 0;
-    const fit = (x, y, z) => {
-      const point = new THREE.Vector3(x, y, z).sub(initialTarget);
-      const forward = point.dot(viewDir);
-      distance = Math.max(distance,
-        forward + Math.abs(point.dot(right)) / (tangent * camera.aspect),
-        forward + Math.abs(point.dot(up)) / tangent);
-    };
-    // Sample the curved turning envelope; a full bounding cube wastes most of the viewport.
-    for (let step = 0; step <= 64; step++) {
-      const angle = Math.PI * step / 64;
-      for (const y of [-1.08, 1.08]) fit(1.62 * Math.cos(angle), y, 1.62 * Math.sin(angle));
-    }
-    for (const x of [-1.62, 1.62]) for (const y of [-1.08, 1.08]) fit(x, y, -depth);
-    return distance * 1.06;
-  }
-
-  /** Repositions the camera along the fixed 3/4 direction to fit the current viewport. */
-  function fitCameraDistance() {
-    const dist = fittedDistance();
-    camera.position.copy(viewDir).multiplyScalar(dist).add(initialTarget);
-    camera.lookAt(initialTarget);
-  }
-
   const book = new Book3D(scene);
+  book.setSlideCount(presentation.slides.length);
+  const cameraRig = createCameraRig(camera, book, presentation.slides.length);
+  cameraRig.setState(presentation.contentIndex);
   let disposed = false;
+  function render() {
+    const { left, right, bottom, top } = cameraRig.getFrame();
+    const { x: width, y: height } = renderer.getSize(new THREE.Vector2());
+    const x = Math.max(0, Math.floor((left + 1) * width / 2) - 3);
+    const y = Math.max(0, Math.floor((bottom + 1) * height / 2) - 3);
+    const endX = Math.min(width, Math.ceil((right + 1) * width / 2) + 3);
+    const endY = Math.min(height, Math.ceil((top + 1) * height / 2) + 3);
+    renderer.setScissorTest(false);
+    renderer.clear();
+    renderer.setScissor(x, y, endX - x, endY - y);
+    renderer.setScissorTest(true);
+    renderer.render(scene, camera);
+  }
   const loop = createRenderLoop({
-    update: now => book.update(now),
-    render: () => renderer.render(scene, camera),
-    isAnimating: () => book.isAnimating(),
+    update: now => { book.update(now); cameraRig.update(now); },
+    render,
+    isAnimating: () => book.isAnimating() || cameraRig.isAnimating(),
   });
-  const cache = new SlideTextureCache(presentation.slides, loadSlideTexture, presentation.sources);
-  const ready = Promise.all([
+  // One paper-image decode per runtime. Every cached or uploaded slide uses the same base.
+  const paperPromise = (presentation.covers.pageTexture ? loadImage(presentation.covers.pageTexture) : Promise.resolve(null))
+    .catch(error => { console.warn("[paper] Using plain paper:", error); return null; });
+  const prepareSlide = async (url, index) => loadSlideTexture(url, index, await paperPromise);
+  const cache = new SlideTextureCache(presentation.slides, prepareSlide, presentation.sources);
+  const paperReady = paperPromise.then(image => {
+    if (!disposed) { book.setPaperTexture(makePageBackTexture(image)); loop.invalidate(); }
+  });
+  const coverReady = Promise.all([
     ["frontCover", "Front cover", "setFrontCoverTexture"],
+    ["frontCoverInner", "Inside front cover", "setFrontCoverInnerTexture"],
     ["backCover", "Back cover", "setBackCoverTexture"],
     ["spine", "Spine", "setSpineTexture"],
   ].map(async ([key, label, setter]) => {
@@ -113,6 +96,7 @@ export function createScene(presentation) {
     if (disposed) texture.dispose();
     else { book[setter](texture); loop.invalidate(); }
   }));
+  const ready = Promise.all([paperReady, coverReady]);
   function resize() {
     if (disposed) return;
     const w = container.clientWidth;
@@ -122,7 +106,7 @@ export function createScene(presentation) {
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     renderer.setSize(w, h, false);
-    fitCameraDistance();
+    cameraRig.resize();
     loop.invalidate();
   }
   const observer = new ResizeObserver(resize);
@@ -131,15 +115,21 @@ export function createScene(presentation) {
   document.addEventListener("visibilitychange", loop.visibilityChanged);
   resize();
   return {
-    book, cache, ready, invalidate: loop.invalidate,
+    book, cache, camera, cameraRig, ready, invalidate: loop.invalidate,
+    setCameraState(index) { cameraRig.setState(index); loop.invalidate(); },
+    transitionCamera(index, options) {
+      const completion = cameraRig.transitionTo(index, options);
+      loop.invalidate();
+      return completion;
+    },
     setActive(value) { loop.setActive(value); if (value) resize(); },
     prepareImage(key, url) {
-      return key.startsWith("slide:") ? loadSlideTexture(url, Number(key.split(":")[1])) : loadCoverTexture(url, key);
+      return key.startsWith("slide:") ? prepareSlide(url, Number(key.split(":")[1])) : loadCoverTexture(url, key);
     },
     dispose() {
       if (disposed) return;
       disposed = true;
-      loop.dispose(); observer.disconnect();
+      loop.dispose(); cameraRig.dispose(); observer.disconnect();
       window.removeEventListener("resize", resize);
       document.removeEventListener("visibilitychange", loop.visibilityChanged);
       book.dispose(); cache.dispose(); key.shadow.dispose(); renderer.dispose();

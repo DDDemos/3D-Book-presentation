@@ -1,6 +1,6 @@
 // Content and navigation deliberately have no Three.js dependency.
 export const DEV_MODE = false;
-export const presentationTitle = "Presentation Title";
+export const presentationTitle = "Intro to Vibe Coding";
 export const slides = [
   { src: "./assets/slides/slide-01.png", title: "AI-assisted coding", description: "A code editor with angle brackets and an AI chip, illustrating AI-assisted software development." },
   { src: "./assets/slides/slide-02.png", title: "Human and AI collaboration", description: "A person and a robot beneath overlapping speech bubbles, illustrating a conversation between people and AI." },
@@ -8,8 +8,10 @@ export const slides = [
 ];
 export const bookConfig = {
   frontCover: "./assets/book/cover-front.png?v=2",
+  frontCoverInner: "./assets/book/cover-front-inner.png",
   backCover: "./assets/book/cover-back.png",
   spine: "./assets/book/spine.png",
+  pageTexture: "./assets/book/PageTexture.png",
 };
 
 export class Presentation {
@@ -23,6 +25,7 @@ export class Presentation {
     this.covers = covers;
     this.total = this.entries.length;
     this.currentIndex = 0;
+    this.transitionIndex = null;
     this.busy = false;
     this.reading = true;
     this.runtime = null;
@@ -43,7 +46,8 @@ export class Presentation {
     return {
       index: this.currentIndex, contentIndex: this.contentIndex, total: this.total,
       entry: this.entries[this.currentIndex], busy: this.busy,
-      isAnimating: !!this.runtime?.book.isAnimating(), reading: this.reading,
+      displayIndex: this.transitionIndex ?? this.currentIndex,
+      isAnimating: !!(this.runtime?.book.isAnimating() || this.runtime?.cameraRig?.isAnimating()), reading: this.reading,
       canPrev: !this.busy && this.currentIndex > 0,
       canNext: !this.busy && this.currentIndex < this.total - 1,
       has3D: !!this.runtime, error: this.error,
@@ -54,6 +58,7 @@ export class Presentation {
     this.runtime = runtime;
     runtime.book.setSlideCount(this.slides.length);
     runtime.book.setState(this.contentIndex, texture);
+    runtime.setCameraState(this.contentIndex);
     runtime.cache.preloadAround(this.contentIndex);
     this._emit();
   }
@@ -68,10 +73,11 @@ export class Presentation {
       this.error = "That change could not be completed. Please try again.";
       if (this.runtime) {
         this.runtime.book.setState(this.contentIndex, this.runtime.cache.peek(this.contentIndex));
+        this.runtime.setCameraState(this.contentIndex);
         this.runtime.invalidate();
       }
       return false;
-    } finally { this.busy = false; this._emit(); }
+    } finally { this.transitionIndex = null; this.busy = false; this._emit(); }
   }
   next() { return this._navigate(this.currentIndex + 1, false); }
   prev() { return this._navigate(this.currentIndex - 1, false); }
@@ -87,6 +93,7 @@ export class Presentation {
         try {
           const texture = await this.runtime.cache.get(target - 1);
           this.runtime.book.setState(target - 1, texture);
+          this.runtime.setCameraState(target - 1);
           this.currentIndex = target;
           this.runtime.cache.preloadAround(this.contentIndex);
           this.runtime.invalidate();
@@ -104,17 +111,23 @@ export class Presentation {
     const leaf = direction > 0 ? this.contentIndex : this.contentIndex - 1;
     const frontTexture = covering ? null : await cache.get(leaf);
     const upcomingRightTexture = await cache.get(next - 1);
-    await new Promise(resolve => {
+    const reducedMotion = this.reducedMotion();
+    this.transitionIndex = next;
+    this._emit();
+    const cameraMotion = this.runtime.transitionCamera(next - 1, { duration: duration ?? 900, reducedMotion });
+    const bookMotion = new Promise(resolve => {
       const options = {
         direction: direction > 0 ? "forward" : "backward",
         frontTexture, upcomingRightTexture, duration,
-        reducedMotion: this.reducedMotion(), onComplete: resolve,
+        reducedMotion, onComplete: resolve,
       };
       if (covering) book.flipCover(options);
       else book.flip(options);
       invalidate();
     });
+    await Promise.all([bookMotion, cameraMotion]);
     this.currentIndex = next;
+    this.transitionIndex = null;
     book.syncLayout(this.contentIndex);
     cache.preloadAround(this.contentIndex);
     this._emit();
@@ -128,6 +141,7 @@ export class Presentation {
         try {
           const texture = await this.runtime.cache.get(this.contentIndex);
           this.runtime.book.setState(this.contentIndex, texture);
+          this.runtime.setCameraState(this.contentIndex);
           this.runtime.cache.preloadAround(this.contentIndex);
         } finally { release(); }
       }

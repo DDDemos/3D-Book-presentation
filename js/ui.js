@@ -126,6 +126,10 @@ export function initUI({ presentation, devMode, retry }) {
   });
 
   function updateReading(state) {
+    const paper = $("reading-image-container");
+    paper.classList.toggle("paper-page", !!state.entry.number);
+    paper.style.setProperty("--paper-texture", state.entry.number && presentation.covers.pageTexture
+      ? `url(${JSON.stringify(presentation.covers.pageTexture)})` : "none");
     $("reading-title").textContent = state.entry.title;
     $("reading-description").textContent = state.entry.description || "";
     $("reading-description").hidden = !state.entry.description;
@@ -147,6 +151,10 @@ export function initUI({ presentation, devMode, retry }) {
     if (readingIndex !== state.index) { reader.scrollTop = 0; readingIndex = state.index; }
   }
   function render(state) {
+    const title = $("presentation-title");
+    const hideTitle = state.displayIndex !== 0;
+    title.classList.toggle("title-hidden", hideTitle);
+    title.setAttribute("aria-hidden", String(hideTitle));
     if (state.busy && [indexButton, prev, next, viewButton].includes(document.activeElement)) restoreAfterNavigation = document.activeElement;
     $("slide-counter").textContent = state.entry.number ? `Slide ${state.entry.number} / ${presentation.slides.length}` : state.entry.title;
     prev.disabled = !state.canPrev;

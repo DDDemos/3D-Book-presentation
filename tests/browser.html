@@ -11,6 +11,12 @@ h1 { font-size: 24px; } li { margin: 8px 0; } iframe { border: 1px solid #aaa; d
 <h1>Book browser acceptance checks</h1>
 <p>Uses the real application modules in isolated frames. This test page is not loaded by the presentation.</p>
 <p id="result" role="status">Running…</p>
+<button id="preview" type="button" disabled>Inspect landscape fixture</button>
+<select id="preview-size" aria-label="Preview viewport">
+  <option value="960,600">Desktop</option>
+  <option value="320,640">Narrow portrait</option>
+  <option value="568,320">Short landscape</option>
+</select>
 <ol id="checks"></ol>
 <div id="surface"></div>
 <script type="module" src="./browser.js"></script>

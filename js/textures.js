@@ -57,22 +57,40 @@ function drawPlaceholder(ctx, { label, sublabel, index }) {
   }
 }
 
-/** Builds a "contain fit" canvas texture from a loaded HTMLImageElement. */
-function compositeImage(img, index) {
+/** Paint the default paper before compositing any slide artwork. */
+function drawPaper(ctx, paperImage) {
+  ctx.fillStyle = "#f4f1ea";
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  if (paperImage) ctx.drawImage(paperImage, 0, 0, CANVAS_W, CANVAS_H);
+}
+
+/** Contain the artwork inside a paper margin; preserve its transparent areas. */
+function compositeImage(img, index, paperImage) {
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_W;
   canvas.height = CANVAS_H;
   const ctx = canvas.getContext("2d");
 
-  ctx.fillStyle = "#f4f1ea";
-  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-
-  const scale = Math.min(CANVAS_W / img.width, CANVAS_H / img.height);
-  const w = img.width * scale;
-  const h = img.height * scale;
-  const x = (CANVAS_W - w) / 2;
-  const y = (CANVAS_H - h) / 2;
-  ctx.drawImage(img, x, y, w, h);
+  drawPaper(ctx, paperImage);
+  // Camera screen-up is world +X. Rotate artwork clockwise in canvas space
+  // so its top points along +X on the mesh and reads upright in that view.
+  ctx.save();
+  ctx.translate(CANVAS_W / 2, CANVAS_H / 2);
+  ctx.rotate(Math.PI / 2);
+  if (img) {
+    const scale = Math.min(CANVAS_H * 0.88 / img.width, CANVAS_W * 0.88 / img.height);
+    const w = img.width * scale;
+    const h = img.height * scale;
+    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+  } else {
+    ctx.fillStyle = "#6b6357";
+    ctx.textAlign = "center";
+    ctx.font = "36px Georgia, serif";
+    ctx.fillText(`Slide ${index + 1}`, 0, -12);
+    ctx.font = "24px Georgia, serif";
+    ctx.fillText("Image unavailable", 0, 32);
+  }
+  ctx.restore();
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -114,13 +132,13 @@ export function loadImage(url) {
  * Loads a slide texture, falling back to a generated placeholder on error.
  * Never rejects.
  */
-export async function loadSlideTexture(url, index) {
+export async function loadSlideTexture(url, index, paperImage = null) {
   try {
     const img = await loadImage(url);
-    return compositeImage(img, index);
+    return compositeImage(img, index, paperImage);
   } catch (err) {
     console.warn(`[presentation] ${err.message} — using placeholder.`);
-    return placeholderTexture(index, `Slide ${index + 1}`, "(image not found)");
+    return compositeImage(null, index, paperImage);
   }
 }
 
@@ -147,29 +165,14 @@ export async function loadCoverTexture(url, label) {
   }
 }
 
-/** A neutral, horizontally-symmetric "paper back" texture shared by all pages. */
-export function makePageBackTexture() {
+/** The same paper background used beneath slides, shared by page backs and stacks. */
+export function makePageBackTexture(paperImage = null) {
   const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = Math.round(512 / PAGE_ASPECT);
+  canvas.width = CANVAS_W;
+  canvas.height = CANVAS_H;
   const ctx = canvas.getContext("2d");
 
-  ctx.fillStyle = "#f6f2e9";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const grad = ctx.createRadialGradient(
-    canvas.width / 2, canvas.height / 2, canvas.height * 0.1,
-    canvas.width / 2, canvas.height / 2, canvas.height * 0.7
-  );
-  grad.addColorStop(0, "rgba(0,0,0,0)");
-  grad.addColorStop(1, "rgba(0,0,0,0.06)");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.strokeStyle = "rgba(0,0,0,0.08)";
-  ctx.lineWidth = 2;
-  roundedRect(ctx, canvas.width * 0.28, canvas.height * 0.42, canvas.width * 0.44, canvas.height * 0.16, 8);
-  ctx.stroke();
+  drawPaper(ctx, paperImage);
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
