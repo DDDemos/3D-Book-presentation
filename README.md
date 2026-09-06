@@ -13,6 +13,37 @@ python3 -m http.server 8000
 Open `http://localhost:8000`. ES modules require an HTTP server; opening `index.html`
 directly from the filesystem does not work.
 
+## Add another slide
+
+1. Save an upright landscape image in `assets/slides/`, for example `my-next-slide.jpg`.
+   A 16:9 image is recommended; do not rotate it yourself.
+2. Open [js/presentation.js](js/presentation.js) and insert this object inside the existing
+   `export const slides = [ ... ];` array, after the last slide and before the closing `];`.
+   Keep a comma between slide objects. Replace the example filename and text with yours:
+
+   ```js
+   {
+     src: "./assets/slides/my-next-slide.jpg",
+     title: "My next topic",
+     description: "A short description of what this slide shows.",
+   },
+   ```
+
+3. Save and reload the presentation. Open **Index** to find the new slide. Page numbers,
+   the counter, and the back-cover position update automatically.
+
+Images are not discovered automatically. Each needs its own slide object. To change the
+order, move the whole object, including its optional `resources` array. Dev mode is not
+required for adding content through files.
+
+## Documentation
+
+Start with the [documentation index](documentation/README.md), or open a guide directly:
+
+- [Add, replace, reorder, and remove slides](documentation/adding-slides.md).
+- [Add website links and copyable text, step by step](documentation/adding-links-and-text.md).
+- [Main classes, methods, and runtime flow](documentation/code-reference.md).
+
 ## Content and dev mode
 
 Edit **`js/presentation.js`**. It contains the presentation title, slide metadata,
@@ -187,6 +218,7 @@ not implemented.
 
 ## Project structure
 
+- `documentation/`: content authoring guides and the code reference.
 - `index.html`, `styles.css`: shared page shell, controls, popup, reading view, and styling.
 - `js/presentation.js`: code configuration, view/page state, navigation lock, upload ownership.
 - `js/ui.js`: DOM-only controls, accessible index, reading view, and dev-only editor.
