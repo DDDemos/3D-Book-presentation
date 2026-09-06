@@ -141,8 +141,12 @@ The presentation heading appears only here; it fades away and releases its space
 book opens. The camera rotates smoothly into a nearly straight-on landscape view of the
 right page, with a little cover and paper edge visible. It stays steady between slides and
 returns to an upright portrait view at the back cover, without restoring the heading.
-A background-colored matte around the focused board keeps the unused half of the spread
-out of view even on tall phone screens or wide cover views.
+A transparent frame around the focused board keeps the unused half of the spread
+out of view even on tall phone screens or wide cover views. The whole page uses a warm
+taupe background on both covers and fades to deep brown on content slides, in both 3D
+and reading view. Adjust `--cover-background` and `--slide-background` in `styles.css`
+to change these shades. Reduced motion skips the background fade. The transparent 3D
+canvas reveals the same backdrop without a separate rectangle or idle rendering.
 Cover-boundary camera movement runs alongside the page animation at the same duration;
 navigation remains locked until both finish. Each pose fits the available viewport on resize,
 including while rotating. There are no drag or wheel camera controls.

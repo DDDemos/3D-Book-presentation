@@ -1,6 +1,10 @@
 :root {
   --bg-color: #eae6dd;
-  --bg-color-2: #dcd6c8;
+  --cover-background: #c5b8a6;
+  --slide-background: #35251f;
+  --backdrop-duration: .9s;
+  --page-ink: #2b2622;
+  --page-ink-soft: #51483d;
   --ink: #2b2622;
   --ink-soft: #6b6357;
   --accent: #8a5a34;
@@ -16,10 +20,19 @@ html, body { min-height: 100%; }
 body {
   margin: 0;
   font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
-  color: var(--ink);
-  background: radial-gradient(ellipse at 50% 30%, var(--bg-color), var(--bg-color-2));
+  color: var(--page-ink);
+  background-color: var(--cover-background);
+  transition: background-color var(--backdrop-duration) ease, color var(--backdrop-duration) ease;
   overflow-x: hidden;
 }
+body[data-page-theme="slide"] {
+  --page-ink: #f5ecdf;
+  --page-ink-soft: #d6c6b4;
+  background-color: var(--slide-background);
+}
+/* Light paper, panels and popups retain dark text on either backdrop. */
+.resource-panel, .index-popup, .editor-panel, .action-error, .paper-page { color: var(--ink); }
+.startup-notice, .slide-counter { transition: color var(--backdrop-duration) ease; }
 button, select, input { font: inherit; }
 button { touch-action: manipulation; }
 button:focus-visible, select:focus-visible, input:focus-visible, article:focus-visible {
@@ -55,7 +68,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, article:focus-v
   transition: opacity .24s ease, max-height .24s ease, padding .24s ease;
 }
 .app-header h1.title-hidden { opacity: 0; max-height: 0; padding-block: 0; pointer-events: none; }
-.startup-notice { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .5rem; padding-block: .75rem; color: var(--ink-soft); font-size: .875rem; text-align: center; }
+.startup-notice { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .5rem; padding-block: .75rem; color: var(--page-ink-soft); font-size: .875rem; text-align: center; }
 .stage { position: relative; min-height: 0; width: 100%; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) 0px; column-gap: 0; transition: grid-template-columns .24s ease, column-gap .24s ease; }
 .stage.has-resources { grid-template-columns: minmax(0, 1fr) clamp(18rem, 32vw, 24rem); column-gap: 1rem; }
 .view-surface { position: relative; min-width: 0; min-height: 0; }
@@ -96,7 +109,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, article:focus-v
 .nav-btn:hover { background: var(--accent-hover); }
 button:disabled { cursor: not-allowed; }
 .nav-btn:disabled { background: #b9b2a4; color: #453d33; box-shadow: none; }
-.slide-counter { min-width: 7.5em; text-align: center; font-variant-numeric: tabular-nums; font-size: .95rem; color: var(--ink-soft); }
+.slide-counter { min-width: 7.5em; text-align: center; font-variant-numeric: tabular-nums; font-size: .95rem; color: var(--page-ink-soft); }
 .app-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .5rem; padding: .25rem 1rem max(.85rem, env(safe-area-inset-bottom)); }
 .icon-btn { padding: .45rem .9rem; font-size: .875rem; color: var(--ink); background: var(--surface); border: 1px solid var(--surface-border); }
 .icon-btn:hover { background: #f5f3ee; }

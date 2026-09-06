@@ -155,6 +155,9 @@ export function initUI({ presentation, devMode, retry, resourceOptions = {} }) {
     if (readingIndex !== state.index) { reader.scrollTop = 0; readingIndex = state.index; }
   }
   function render(state) {
+    const isSlide = state.displayIndex > 0 && state.displayIndex < state.total - 1;
+    document.body.dataset.pageTheme = isSlide ? "slide" : "cover";
+    document.body.style.setProperty("--backdrop-duration", presentation.reducedMotion() ? "0s" : ".9s");
     const title = $("presentation-title");
     const hideTitle = state.displayIndex !== 0;
     title.classList.toggle("title-hidden", hideTitle);

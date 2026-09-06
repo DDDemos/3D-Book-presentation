@@ -13,7 +13,7 @@ export function createScene(presentation) {
   canvas.id = "book-canvas";
   canvas.setAttribute("aria-hidden", "true");
   container.replaceChildren(canvas);
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -21,9 +21,10 @@ export function createScene(presentation) {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xe6e1d6);
-  renderer.setClearColor(scene.background);
-  scene.fog = new THREE.Fog(0xe6e1d6, 8, 16);
+  // The page owns the backdrop, including its color transition. Transparent
+  // clearing also reveals it outside the framing scissor without a canvas seam.
+  // No colored fog: it would bake a second backdrop into the book's materials.
+  renderer.setClearColor(0x000000, 0);
 
   const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
 

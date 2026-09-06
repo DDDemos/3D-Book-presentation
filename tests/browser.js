@@ -93,6 +93,38 @@ try {
     assert(f.$('presentation-title').textContent === 'Intro to Vibe Coding', 'Wrong introduction title');
     assert(f.$('presentation-title').getAttribute('aria-hidden') === 'false', 'Cover heading is hidden');
   });
+  await check('The whole page fades to brown on slides and restores the cover shade at either end', async () => {
+    const background = () => f.win.getComputedStyle(f.doc.body).backgroundColor;
+    const cover = background();
+    assert(cover === 'rgb(197, 184, 166)', 'Cover backdrop is not the darker warm shade');
+    const navigation = f.p.next();
+    await wait(() => f.p.runtime.book.isAnimating());
+    assert(f.doc.body.dataset.pageTheme === 'slide', 'Backdrop did not change when opening started');
+    if (!f.p.reducedMotion()) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      assert(background() !== cover && background() !== 'rgb(53, 37, 31)', 'Backdrop snapped instead of fading');
+    }
+    await navigation;
+    await wait(() => background() === 'rgb(53, 37, 31)');
+    const gl = f.$('book-canvas').getContext('webgl2') || f.$('book-canvas').getContext('webgl');
+    let cornerAlpha;
+    const draw = gl.drawElements;
+    gl.drawElements = function(...args) {
+      const result = draw.apply(this, args);
+      const pixel = new Uint8Array(4);
+      gl.readPixels(0, gl.drawingBufferHeight - 1, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+      cornerAlpha = pixel[3];
+      return result;
+    };
+    try {
+      f.p.runtime.invalidate(); await wait(() => cornerAlpha !== undefined);
+      assert(cornerAlpha === 0, 'Canvas matte hides the shared page background');
+    } finally { gl.drawElements = draw; }
+    await f.p.goTo(f.p.total - 1);
+    await wait(() => background() === cover);
+    assert(f.doc.body.dataset.pageTheme === 'cover', 'Back cover kept the slide backdrop');
+    await f.p.goTo(0); await wait(() => background() === cover);
+  });
   await check('16:9 artwork fits completely and rotates to match the landscape camera', async () => {
     const texture = await f.p.runtime.prepareImage('slide:0', new URL('tests/landscape.svg', root).href);
     assertLandscapeTexture(texture); texture.dispose();
@@ -435,9 +467,13 @@ try {
   f = await fixture({ fail: true });
   await check('A failed Three.js import leaves a usable reading view and Retry', async () => {
     assert(!f.$('retry-btn').hidden && !f.$('reading-view').hidden, 'Fallback unavailable');
+    f.p.reducedMotion = () => true;
     await f.p.goTo(2); assert(f.$('reading-title').textContent === 'Human and AI collaboration', 'Fallback navigation failed');
+    assert(f.win.getComputedStyle(f.doc.body).backgroundColor === 'rgb(53, 37, 31)', 'Reading-only reduced-motion backdrop was not immediate');
+    assert(f.win.getComputedStyle(f.$('reading-title')).color === 'rgb(245, 236, 223)', 'Reading title is not light on the dark backdrop');
     f.allowRetry(); f.$('retry-btn').click(); await wait(() => f.p.runtime && !f.p.busy);
     assert(f.p.currentIndex === 2 && !f.p.reading, 'Retry did not restore current page');
+    assert(f.doc.body.dataset.pageTheme === 'slide', 'Startup recovery lost the slide backdrop');
     assertFraming(f, 'content');
   });
   f = await fixture({ timeout: true });
