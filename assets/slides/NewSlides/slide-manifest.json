@@ -1,0 +1,185 @@
+{
+  "source_pdf": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation.pdf",
+  "numbering": "The two-digit slide number matches the one-based PDF page number.",
+  "notes": [
+    "PDF pages 1 and 13 repeat the same quote. Both identical source images are retained at their respective positions.",
+    "Images were matched by artwork and PDF page text; PNG bytes were preserved."
+  ],
+  "slides": [
+    {
+      "pdf_page": 1,
+      "title": "Why build this application?",
+      "file": "slide-01-why-build-this-application.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation.png",
+      "sha256": "5d602daac023fe73f6c96a6949caa2e30a8674fdba47c16f627cb1eb1499074c"
+    },
+    {
+      "pdf_page": 2,
+      "title": "Prompt Engineering: Google Stitch prompt",
+      "file": "slide-02-google-stitch-prompt.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (1).png",
+      "sha256": "7e7a16083e5ed519499e9922e72a6dd749a19d897e9f272f3cf394738f795804"
+    },
+    {
+      "pdf_page": 3,
+      "title": "Demos & Slides",
+      "file": "slide-03-demos-and-slides.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (2).png",
+      "sha256": "de57414bf65921aa65e2604df6ac058551715800787393b60d840f00fa10b291"
+    },
+    {
+      "pdf_page": 4,
+      "title": "Table of Contents",
+      "file": "slide-04-table-of-contents.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (3).png",
+      "sha256": "41caea9ad861f378a7f93f1c954d04773b7d4cd8d20c305e105454c0c8ff5481"
+    },
+    {
+      "pdf_page": 5,
+      "title": "Prompt Engineering: Structure of a prompt",
+      "file": "slide-05-prompt-engineering-structure.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation copy.png",
+      "sha256": "9730b1657596ee0732f576ad0a72eb7977d1c7e6e8a782dbd51d07fd909dbc8f"
+    },
+    {
+      "pdf_page": 6,
+      "title": "Birmingham Music Stories",
+      "file": "slide-06-birmingham-music-stories.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (1) copy.png",
+      "sha256": "baf398be7acc3f5322ba82ffb86ef271824751a495290e44fe2302edc378a014"
+    },
+    {
+      "pdf_page": 7,
+      "title": "Idea, Frontend, Backend, App",
+      "file": "slide-07-traditional-app-development.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (2) copy.png",
+      "sha256": "788bdb8204e57f4ce2f97552642ecc9a6ba3f489902494e6d48feb9aa1b96db1"
+    },
+    {
+      "pdf_page": 8,
+      "title": "Idea, Website Builder, App",
+      "file": "slide-08-website-builder-workflow.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (3) copy.png",
+      "sha256": "e089c63446b02f14c8d94a15166684d716558e1c9992496d6d3618babb5e8cc6"
+    },
+    {
+      "pdf_page": 9,
+      "title": "Idea, Prompts, AI Agent, App",
+      "file": "slide-09-ai-agent-app-development.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (4).png",
+      "sha256": "e104c39a310293587d12980833084cfe846b8a317d918fa3a44c03e87a4c6889"
+    },
+    {
+      "pdf_page": 10,
+      "title": "Agentic Workflow",
+      "file": "slide-10-agentic-workflow.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (5).png",
+      "sha256": "daa1405414930cd91d78938e60e4b22018c5fffac524b213ce2cd3b65635c193"
+    },
+    {
+      "pdf_page": 11,
+      "title": "Tools",
+      "file": "slide-11-tools.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (6).png",
+      "sha256": "94f3342064a66b622b975dec620e34a3fb48ac92876b2456942976fc401ea481"
+    },
+    {
+      "pdf_page": 12,
+      "title": "Google Stitch Result",
+      "file": "slide-12-google-stitch-result.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (7).png",
+      "sha256": "d6d2018d4f5827c677f5f5fc698f9a47f582d58ca7881e6d733696737912f47f"
+    },
+    {
+      "pdf_page": 13,
+      "title": "Why build this application?",
+      "file": "slide-13-why-build-this-application.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (8).png",
+      "sha256": "5d602daac023fe73f6c96a6949caa2e30a8674fdba47c16f627cb1eb1499074c"
+    },
+    {
+      "pdf_page": 14,
+      "title": "Google AI Studio: Prompt",
+      "file": "slide-14-google-ai-studio-prompt.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (9).png",
+      "sha256": "3487a982c85aa2f92b4c6c7d0ca23de06f94b01d8869537a5e8be1d97c215bb1"
+    },
+    {
+      "pdf_page": 15,
+      "title": "Sending it to GitHub",
+      "file": "slide-15-sending-to-github.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (10).png",
+      "sha256": "acf3ac6a5eeee69907851e156506c2098c624dea5f7845f62f5362e2b114eabf"
+    },
+    {
+      "pdf_page": 16,
+      "title": "GitHub Desktop",
+      "file": "slide-16-github-desktop.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (11).png",
+      "sha256": "73ae8346ea19e5771d4d1789e60d9f608ac9b4b1a53c3554d23bb98316136dc2"
+    },
+    {
+      "pdf_page": 17,
+      "title": "Clone it locally",
+      "file": "slide-17-clone-it-locally.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (12).png",
+      "sha256": "7f36509cf1a9e4d446baf8d7f374e1b7c477c7b11dc983fd84a7f1aa24243061"
+    },
+    {
+      "pdf_page": 18,
+      "title": "IDE + AI Agent",
+      "file": "slide-18-ide-and-ai-agent.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (13).png",
+      "sha256": "9a99b20e1e3d636cf6f9378833e486cd2079219f37b7fe59cf71e5c0336146e6"
+    },
+    {
+      "pdf_page": 19,
+      "title": "Google AI Studio Result",
+      "file": "slide-19-google-ai-studio-result.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (14).png",
+      "sha256": "5b623cf1a8317ae6a46b8fd54468f52aa4a16cc27983c13cbf4946bbff92e884"
+    },
+    {
+      "pdf_page": 20,
+      "title": "Running the website locally",
+      "file": "slide-20-running-the-website-locally.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (15).png",
+      "sha256": "1bdd200a46e2f534969332293d001937a8431b5525e091dc0e524ea90bd3c89c"
+    },
+    {
+      "pdf_page": 21,
+      "title": "Publishing the website online: GitHub Pages",
+      "file": "slide-21-publishing-with-github-pages.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (16).png",
+      "sha256": "be790705f1a3e0c11a4eccd180ce8542e501a223e2ec5960f0a131dfd86653d6"
+    },
+    {
+      "pdf_page": 22,
+      "title": "AI agent: Include photos",
+      "file": "slide-22-ai-agent-include-photos.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (17).png",
+      "sha256": "32b19a1f4470ff931d3d90a682813f2eabb0cd5f3dc47f15e93d377a708ec4bd"
+    },
+    {
+      "pdf_page": 23,
+      "title": "AI agent: Add About Me",
+      "file": "slide-23-ai-agent-add-about-me.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (18).png",
+      "sha256": "6108f38cc38883a5f410ce7d434c5381b45f1e7d350fb1cf4721cf5e3b8beb3a"
+    },
+    {
+      "pdf_page": 24,
+      "title": "Skills",
+      "file": "slide-24-skills.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (19).png",
+      "sha256": "653ed6c4b90837ad22310be1bec811268a9ca08c4533d932d1902a6093fc329c"
+    },
+    {
+      "pdf_page": 25,
+      "title": "Documentation",
+      "file": "slide-25-documentation.png",
+      "original_filename": "Copy of Sep 26- Createch AI Assisted Content Creation Presentation (20).png",
+      "sha256": "c971376bc77eba3b9b98c60a7e198e6fac397ef32f883e515f81224eeb6cf660"
+    }
+  ]
+}

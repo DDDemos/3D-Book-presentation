@@ -3,14 +3,132 @@ import { normalizeResources } from "./resources.js?v=6";
 export const DEV_MODE = false;
 export const presentationTitle = "Intro to Vibe Coding";
 export const slides = [
-  { src: "./assets/slides/slide-01.png", title: "AI-assisted coding", description: "A code editor with angle brackets and an AI chip, illustrating AI-assisted software development.",
-    resources: [
-      { type: "text", label: "Example prompt", src: "./assets/text/example-prompt.txt" },
-      { type: "url", label: "Example website", url: "https://example.com" },
-    ],
+  // One book page per PDF page, including the repeated quote at positions 1 and 13.
+  {
+    src: "./assets/slides/NewSlides/slide-01-why-build-this-application.png",
+    title: "Why build this application?",
+    description: "Chip Huyen's AI Engineering asks why you want to build an application before deciding how to build it. The book cover appears beside the quote.",
   },
-  { src: "./assets/slides/slide-02.png", title: "Human and AI collaboration", description: "A person and a robot beneath overlapping speech bubbles, illustrating a conversation between people and AI." },
-  { src: "./assets/slides/slide-03.png", title: "Sharing and iteration", description: "Two illustrated documents connected by arrows, representing exchanging content and iterating on ideas." },
+  {
+    src: "./assets/slides/NewSlides/slide-02-google-stitch-prompt.png",
+    title: "Prompt Engineering: Google Stitch prompt",
+    description: "A Google Stitch prompt for Birmingham Music Stories, combining archival music imagery, gig posters, and industrial heritage with genre stories, a sound map, and an album timeline.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-03-demos-and-slides.png",
+    title: "Demos & Slides",
+    description: "The workshop's demos and slides are available at https://github.com/DDDemos, shown with a preview of the GitHub profile.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-04-table-of-contents.png",
+    title: "Table of Contents",
+    description: "Workshop outline: design and refine a website with Google Stitch, use GitHub for version control and publishing, then work with AI agents, documentation, and skills.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-05-prompt-engineering-structure.png",
+    title: "Prompt Engineering: Structure of a prompt",
+    description: "Structure a prompt around its goal, context and constraints, required content, and success criteria, including behavior, interactions, and tests.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-06-birmingham-music-stories.png",
+    title: "Birmingham Music Stories",
+    description: "An interactive exhibition of Birmingham's musical heritage built with HTML, CSS, and vanilla JavaScript. Its brief includes artist stories, genre filters, a sound map, and a musical timeline.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-07-traditional-app-development.png",
+    title: "Idea, Frontend, Backend, App",
+    description: "A diagram traces traditional application development from an idea through frontend and backend development to a working app.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-08-website-builder-workflow.png",
+    title: "Idea, Website Builder, App",
+    description: "A diagram shows an idea becoming an application through a visual website builder.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-09-ai-agent-app-development.png",
+    title: "Idea, Prompts, AI Agent, App",
+    description: "A diagram shows an idea expressed through prompts, developed by an AI agent, and turned into an application.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-10-agentic-workflow.png",
+    title: "Agentic Workflow",
+    description: "An overview connects app builders, development environments, and coding agents with version control and project context.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-11-tools.png",
+    title: "Tools",
+    description: "The workshop toolset: Google Stitch, Google AI Studio, Git and GitHub, VS Code, and Claude Code.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-12-google-stitch-result.png",
+    title: "Google Stitch Result",
+    description: "A screenshot of Google Stitch showing desktop and mobile designs for the Birmingham Music Stories website.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-13-why-build-this-application.png",
+    title: "Why build this application?",
+    description: "The workshop returns to Chip Huyen's question about why you want to build an application, beside the cover of AI Engineering.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-14-google-ai-studio-prompt.png",
+    title: "Google AI Studio: Prompt",
+    description: "A prompt asks Google AI Studio to implement Birmingham Music Stories from the attached design using only HTML, CSS, and JavaScript, with genre selection, map stories, and expandable featured stories.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-15-sending-to-github.png",
+    title: "Sending it to GitHub",
+    description: "A diagram and repository screenshot show moving a website from Google AI Studio into GitHub.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-16-github-desktop.png",
+    title: "GitHub Desktop",
+    description: "The GitHub Desktop logo appears beside the Birmingham Music History Demo repository on GitHub.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-17-clone-it-locally.png",
+    title: "Clone it locally",
+    description: "Copy a GitHub repository onto a local machine using the Clone a Repository dialog in GitHub Desktop.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-18-ide-and-ai-agent.png",
+    title: "IDE + AI Agent",
+    description: "VS Code and Codex are shown beside a development workspace, pairing a code editor with an AI coding agent.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-19-google-ai-studio-result.png",
+    title: "Google AI Studio Result",
+    description: "A Google AI Studio screenshot shows the implemented Birmingham Music Stories website, with music-history content and a timeline.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-20-running-the-website-locally.png",
+    title: "Running the website locally",
+    description: "Serve the website locally with the Python command: python3 -m http.server 8000 --bind 0.0.0.0.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-21-publishing-with-github-pages.png",
+    title: "Publishing the website online: GitHub Pages",
+    description: "The GitHub Pages repository settings show how to publish the static website online.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-22-ai-agent-include-photos.png",
+    title: "AI agent: Include photos",
+    description: "A Codex prompt asks an agent to replace intended photo placeholders with suitable reusable images, preserve the website design, and keep placeholders when no suitable photograph is found.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-23-ai-agent-add-about-me.png",
+    title: "AI agent: Add About Me",
+    description: "A Codex prompt asks for an About Me page for Diego Minaya, XR Developer, including a photograph, biography, and navigation consistent with the existing website.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-24-skills.png",
+    title: "Skills",
+    description: "Skills are presented as reusable prompts, with https://www.skills.sh/ and screenshots of a frontend-design skill and development workspace.",
+  },
+  {
+    src: "./assets/slides/NewSlides/slide-25-documentation.png",
+    title: "Documentation",
+    description: "Documentation provides persistent context, prevents repeated prompting, and creates a shared project memory.",
+  },
 ];
 export const bookConfig = {
   frontCover: "./assets/book/cover-front.png?v=2",

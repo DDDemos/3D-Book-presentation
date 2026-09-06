@@ -13,17 +13,18 @@ const wait = async (condition, message = 'Condition timed out') => {
     await new Promise(resolve => setTimeout(resolve, 25));
   }
 };
-async function fixture({ dev = false, count = 3, fail = false, timeout = false, width = 960, height = 650, landscape = false, withResources = false } = {}) {
+async function fixture({ dev = false, count = 3, fail = false, timeout = false, width = 960, height = 650, landscape = false, withResources = false, configuredDeck = false } = {}) {
   if (frame) { frame.contentWindow.fixture?.ui.dispose(); frame.contentWindow.fixture?.startup.dispose(); frame.contentWindow.fixture?.p.dispose(); frame.remove(); }
   frame = document.createElement('iframe'); frame.title = 'Presentation test fixture';
   frame.style.width = `${width}px`; frame.style.height = `${height}px`;
   const script = `
     import { Presentation, slides } from './js/presentation.js?v=6';
+    import { sampleSlides } from './tests/sample-slides.js';
     import { initUI } from './js/ui.js?v=6';
     import { createStartup } from './js/startup.js?v=6';
     window.addEventListener('error', event => window.fixtureError = event.message);
     window.addEventListener('unhandledrejection', event => window.fixtureError = String(event.reason));
-    const p = new Presentation(Array.from({length: ${count}}, (_, i) => ({...slides[i % slides.length], resources: ${withResources} ? slides[i % slides.length].resources : [], title: slides[i % slides.length].title + (${count} > 3 ? ' ' + (i + 1) : '')})));
+    const p = new Presentation(${configuredDeck} ? slides : Array.from({length: ${count}}, (_, i) => ({...sampleSlides[i % sampleSlides.length], resources: ${withResources} ? sampleSlides[i % sampleSlides.length].resources : [], title: sampleSlides[i % sampleSlides.length].title + (${count} > 3 ? ' ' + (i + 1) : '')})));
     ${landscape ? `p.slides.forEach((slide, i) => { slide.src = '${root.href}tests/landscape.svg'; slide.title = 'Landscape check ' + (i + 1); Object.assign(p.entries[i + 1], slide); });` : ''}
     let startup;
     window.copied = []; window.denyClipboard = false;
@@ -487,6 +488,31 @@ try {
     assert(f.p.reading && !f.$('resource-slot').hidden, 'Fallback does not include the resource panel');
     f.$('resource-copy').click(); await wait(() => f.$('resource-status').textContent === 'Copied');
     assert(f.win.copied.at(-1).includes('EXAMPLE PROMPT'), 'Fallback copied the wrong content');
+  });
+  f = await fixture({configuredDeck: true});
+  await check('The configured deck matches the PDF manifest and every page opens in 3D and reading view', async () => {
+    const manifest = await (await fetch(new URL('assets/slides/NewSlides/slide-manifest.json', root))).json();
+    assert(f.p.slides.length === manifest.slides.length && f.p.total === manifest.slides.length + 2, 'Configured deck is missing slides or covers');
+    assert(f.$('index-grid').children.length === f.p.total, 'Index omitted a configured entry');
+    for (const [i, slide] of f.p.slides.entries()) {
+      const expected = manifest.slides[i];
+      assert(expected.pdf_page === i + 1 && slide.src.endsWith('/' + expected.file) && slide.title === expected.title, 'PDF order or title mismatch at slide ' + (i + 1));
+      const image = new f.win.Image(); image.src = slide.src; await image.decode();
+      assert(image.naturalWidth === 960 && image.naturalHeight === 540, 'Slide image did not decode at its original dimensions');
+      f.$('index-toggle-btn').click(); f.$('index-grid').children[i + 1].click();
+      await wait(() => !f.p.busy);
+      assert(f.p.currentIndex === i + 1 && f.p.runtime.book.rightPageMat.map === f.p.runtime.cache.peek(i), '3D page is out of sync');
+      assert(f.$('index-grid').children[i + 1].getAttribute('aria-current') === 'page', 'Index did not highlight the configured page');
+      assertFraming(f, 'content');
+    }
+    await f.p.next(); assertFraming(f, 'back');
+    assert(f.$('slide-counter').textContent === 'Back cover', 'Back cover was not moved after the last slide');
+    await f.p.setReading(true);
+    for (let index = 1; index <= f.p.slides.length; index++) {
+      await f.p.goTo(index);
+      assert(f.$('reading-title').textContent === f.p.slides[index - 1].title && f.$('reading-description').textContent, 'Reading metadata is missing');
+    }
+    await f.p.goTo(0); await f.p.setReading(false); assertFraming(f, 'front');
   });
   document.getElementById('result').textContent = `${passed} browser checks passed.`;
   const preview = document.getElementById('preview');

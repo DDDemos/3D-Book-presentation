@@ -74,7 +74,10 @@ plain text displayed below the image in reading view. Blank or missing titles be
 “Slide N.” For presentations containing text, include that text or an equivalent description
 so the content is available to screen readers. Images are not automatically transcribed.
 
-The three supplied slides are sample artwork. The book uses the supplied leather-and-gold
+The active deck contains the 25 workshop images in `assets/slides/NewSlides/`, in PDF page
+order. Each is a separate book page with an Index title and reading-view description.
+The quote on PDF pages 1 and 13 remains in both positions. The original three sample images
+are retained as test fixtures. The book uses the supplied leather-and-gold
 front cover, back cover, and spine PNGs. The physical pages remain 3:4 portrait, but the
 content camera rotates 90° to present the right page as a 4:3 landscape surface. Supply
 slide images upright in landscape orientation (16:9 recommended); composition rotates
@@ -118,9 +121,10 @@ or both. The URL always appears above the text, regardless of their array order;
 no selector. Configure at most one item of each type (the first of each type is displayed).
 Omit `resources` or use an empty array for slides that need no panel.
 
-The first sample slide includes a clearly labeled example prompt and an example.com URL.
-Replace the file contents, labels, and URL with your own material. The other sample slides
-have no resources. Resource text is separate from the slide's accessible `description`.
+The example above demonstrates a prompt and an example.com URL; it is not part of the active
+25-slide deck. Attach your own resources to the appropriate slide objects as needed.
+Text and URLs drawn inside a slide image do not automatically create resource controls.
+Resource text is separate from the slide's accessible `description`.
 
 On desktops wider than 960px, the panel sits to the right and the book shifts left with a
 slight additional camera angle. On smaller screens the panel sits below the slide; scroll

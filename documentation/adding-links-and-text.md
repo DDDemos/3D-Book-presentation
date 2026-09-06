@@ -84,8 +84,9 @@ together, with separate copy icons. Configure at most one item of each type; if 
 more, only the first URL and the first text item are displayed. A URL written inside a
 prompt remains ordinary text; add a `type: "url"` item to get the external-link icon.
 
-The first bundled slide already demonstrates both using
-[example-prompt.txt](../assets/text/example-prompt.txt) and example.com.
+The [README example](../README.md#prompts-text-and-website-links) demonstrates both using
+[example-prompt.txt](../assets/text/example-prompt.txt) and example.com. The active workshop
+deck contains image pages; attach resources explicitly to add copy and external-link controls.
 
 ## Update or remove resources
 
