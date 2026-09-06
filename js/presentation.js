@@ -13,6 +13,9 @@ export const slides = [
     src: "./assets/slides/NewSlides/slide-02-google-stitch-prompt.png",
     title: "Prompt Engineering: Google Stitch prompt",
     description: "A Google Stitch prompt for Birmingham Music Stories, combining archival music imagery, gig posters, and industrial heritage with genre stories, a sound map, and an album timeline.",
+    resources: [
+      { type: "text", label: "Birmingham Music Stories", src: "./assets/text/birmingham-music-stories-stitch-prompt.txt" },
+    ],
   },
   {
     src: "./assets/slides/NewSlides/slide-03-demos-and-slides.png",
@@ -73,6 +76,9 @@ export const slides = [
     src: "./assets/slides/NewSlides/slide-14-google-ai-studio-prompt.png",
     title: "Google AI Studio: Prompt",
     description: "A prompt asks Google AI Studio to implement Birmingham Music Stories from the attached design using only HTML, CSS, and JavaScript, with genre selection, map stories, and expandable featured stories.",
+    resources: [
+      { type: "text", label: "Build Birmingham Music Stories", src: "./assets/text/birmingham-music-stories-ai-studio-prompt.txt" },
+    ],
   },
   {
     src: "./assets/slides/NewSlides/slide-15-sending-to-github.png",
@@ -113,11 +119,17 @@ export const slides = [
     src: "./assets/slides/NewSlides/slide-22-ai-agent-include-photos.png",
     title: "AI agent: Include photos",
     description: "A Codex prompt asks an agent to replace intended photo placeholders with suitable reusable images, preserve the website design, and keep placeholders when no suitable photograph is found.",
+    resources: [
+      { type: "text", label: "Replace photo placeholders", src: "./assets/text/birmingham-music-stories-photos-prompt.txt" },
+    ],
   },
   {
     src: "./assets/slides/NewSlides/slide-23-ai-agent-add-about-me.png",
     title: "AI agent: Add About Me",
     description: "A Codex prompt asks for an About Me page for Diego Minaya, XR Developer, including a photograph, biography, and navigation consistent with the existing website.",
+    resources: [
+      { type: "text", label: "Add an About Me page", src: "./assets/text/birmingham-music-stories-about-me-prompt.txt" },
+    ],
   },
   {
     src: "./assets/slides/NewSlides/slide-24-skills.png",

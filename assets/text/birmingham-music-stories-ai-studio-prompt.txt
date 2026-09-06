@@ -1,0 +1,148 @@
+Build Birmingham Music Stories
+Build a complete responsive website called Birmingham Music Stories, using the attached design as the primary visual reference.
+The website is an interactive digital exhibition celebrating Birmingham's musical heritage through its artists, genres and places.
+IMPORTANT TECHNICAL REQUIREMENTS
+Build this as a simple static website using only:
+HTML
+CSS
+vanilla JavaScript
+Do NOT use:
+React
+Vue
+Angular
+Next.js
+npm packages
+Node.js
+a backend
+databases
+authentication
+external APIs
+API keys
+The finished project must work simply by opening index.html and must be suitable for direct hosting using GitHub Pages.
+Use this file structure:
+index.html
+styles.css
+script.js
+Keep the JavaScript understandable and reasonably concise because this project will be used to demonstrate AI-assisted coding to beginners.
+WEBSITE CONCEPT
+Title:
+Birmingham Music Stories
+Tagline:
+The sounds, people and places that helped shape a city.
+The website should feel like an interactive cultural exhibition rather than a normal corporate website.
+Use the supplied design as closely as possible.
+The visual identity should combine contemporary exhibition design with references to archival music photography, gig posters, record sleeves and Birmingham's industrial heritage.
+Use dark charcoal backgrounds, warm off-white text, muted brass/amber accents and occasional deep red details.
+Avoid generic SaaS UI, glassmorphism and excessive rounded cards.
+CONTENT
+Create an introductory section explaining that Birmingham's musical history was shaped by its neighbourhoods, venues, communities and changing musical movements.
+Create five musical categories:
+Heavy Metal
+Reggae
+New Wave
+Bhangra
+Rock & Pop
+FEATURED MUSIC STORIES
+Use the following supplied information only. Do not invent additional dates, quotations or historical claims.
+Black Sabbath
+Location: Aston
+Year: 1968
+Genre: Heavy Metal
+Copy:
+Black Sabbath formed in Aston in 1968 and became one of the groups most closely associated with the emergence of heavy metal.
+Steel Pulse
+Location: Handsworth
+Genre: Reggae
+Copy:
+Steel Pulse emerged from Handsworth and became internationally recognised for politically conscious reggae rooted in Birmingham's multicultural communities.
+UB40
+Location: Birmingham
+Year: 1978
+Genre: Reggae
+Copy:
+UB40 formed in Birmingham in 1978 and took a distinctly Birmingham reggae sound to an international audience.
+Duran Duran
+Location: The Rum Runner, Birmingham
+Year: 1978
+Genre: New Wave / New Romantic
+Copy:
+Duran Duran formed in Birmingham in 1978 and developed around the city's Rum Runner nightclub before becoming internationally successful.
+Electric Light Orchestra
+Location: Birmingham
+Era: Early 1970s
+Genre: Rock / Pop
+Copy:
+Electric Light Orchestra emerged from Birmingham and combined rock and pop songwriting with orchestral arrangements.
+INTERACTIVE FEATURE 1 — EXPLORE BY SOUND
+Create five visually distinctive genre controls.
+When the visitor selects a genre, dynamically filter or highlight the relevant music stories.
+The interaction should happen instantly without reloading the page.
+Give selected and hover states clear visual feedback.
+INTERACTIVE FEATURE 2 — BIRMINGHAM SOUND MAP
+Create a stylised graphical representation of Birmingham using HTML/CSS/SVG.
+Do NOT use Google Maps or an external mapping API.
+Include clickable locations for:
+Aston
+Handsworth
+City Centre
+Broad Street
+Clicking a location should reveal a small story panel showing the artists or musical history associated with that location.
+The map should be artistic and exhibition-like rather than geographically precise.
+INTERACTIVE FEATURE 3 — STORY VIEW
+When a visitor clicks a featured music story, expand it or open an elegant modal/panel containing:
+artist name
+location
+genre
+era/year where available
+short description
+Include a clear close/back control.
+MUSIC THROUGH TIME
+Create an interactive visual timeline containing:
+1968 — Black Sabbath / Heavy Metal
+1970s — Electric Light Orchestra
+1978 — UB40
+1978 — Duran Duran
+Later Birmingham music — leave this as a general continuation rather than inventing unsupported historical information.
+The timeline should respond visually to hover or selection.
+VISUAL ASSETS
+Do not rely on copyrighted photographs or unstable external image URLs.
+Instead, create attractive visual placeholders using:
+CSS
+gradients
+texture
+typography
+abstract shapes
+simple inline SVG artwork
+The website should still look polished and intentional without external images.
+Use subtle movement such as:
+reveal animations on scroll
+hover transitions
+gentle image/graphic movement
+animated map markers
+Do not make the animations distracting.
+Respect prefers-reduced-motion.
+RESPONSIVENESS AND ACCESSIBILITY
+Make the site work well on desktop, tablet and mobile.
+Use semantic HTML where practical.
+Make interactive elements keyboard accessible.
+Use appropriate ARIA labels where needed.
+Maintain good colour contrast.
+CODE QUALITY
+Keep content data separate from interaction logic where practical.
+For example, store the music stories in a simple JavaScript array or object and generate interactive content from that data.
+Add short comments to the important JavaScript sections so someone learning web development can understand:
+where the story data lives
+how filtering works
+how the map interaction works
+how story panels are opened
+Do not over-engineer the project.
+FINAL REQUIREMENT
+Before finishing:
+Check that all navigation works.
+Check that every genre filter works.
+Check that every map location works.
+Check that story panels can open and close.
+Check the mobile layout.
+Make sure there are no JavaScript console errors.
+Make sure there are no dependencies that prevent the project from being hosted directly on GitHub Pages.
+The final result should feel like a small but polished interactive digital museum exhibition rather than a coding tutorial project.

@@ -1,0 +1,63 @@
+Review the existing BRUM Music website first so you understand its current structure, visual style, navigation and conventions.
+
+Add a new About Me page to the website.
+
+I will provide you with a photograph of me. Use that image as the main portrait on the About Me page.
+
+Use the following information:
+
+Name: Diego Minaya
+Role: Developer and Creative Technologist
+
+About:
+Diego works with interactive experiences, immersive technology and creative software. He created this BRUM Music website as a demonstration of how AI-assisted development can be used to rapidly prototype and build interactive web experiences.
+
+You may lightly rewrite the description so it reads naturally, but do not invent additional personal information.
+
+IMPORTANT RULES:
+
+1. Do not redesign the existing website.
+2. Match the existing website's typography, colours, spacing, visual language and responsive behaviour.
+3. Add an About link to the existing navigation using the same style and behaviour as the other navigation links.
+4. Keep all existing pages and functionality unchanged.
+5. Use the photograph I provide rather than generating or sourcing another portrait.
+6. Store the photograph somewhere sensible in the existing project structure, such as:
+
+assets/images/about/
+
+if that fits the current structure.
+
+7. Give the image a clear descriptive filename.
+8. Make the portrait responsive and use object-fit: cover if necessary.
+9. Keep this as a static HTML, CSS and JavaScript website.
+10. Do not introduce React, [Node.js](http://node.js/), npm, Vite, build tools or unnecessary external frameworks.
+11. Make sure everything remains compatible with GitHub Pages.
+
+The About page should be simple and only needs:
+
+- my photograph
+- my name
+- my role
+- the short biography
+- the existing website navigation
+
+Do not add unnecessary sections such as:
+
+- testimonials
+- statistics
+- contact forms
+- invented social links
+- skill lists
+- newsletters
+- additional personal information
+
+Before editing anything, inspect the existing project and determine the safest way to integrate the new page with its current structure.
+
+After making the changes:
+
+1. Verify the About navigation link works.
+2. Verify the photograph loads correctly.
+3. Verify the existing website still works.
+4. Verify the About page works on desktop and mobile sizes.
+5. Verify the project remains compatible with GitHub Pages.
+6. Give me a short summary of the files you created or modified.

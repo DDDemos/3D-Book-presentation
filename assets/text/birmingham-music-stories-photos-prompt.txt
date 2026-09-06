@@ -1,0 +1,72 @@
+Review this entire BRUM Music website and identify every place where an icon, generic graphic, emoji, gradient block, or placeholder is being used instead of a real photograph.
+Replace those placeholders with appropriate real-world images.
+IMPORTANT RULES:
+DO NOT redesign the website.
+DO NOT change the layout, typography, spacing, animations, navigation, colours, card sizes, or overall visual style.
+Only replace elements that are clearly intended to represent photographs or image content.
+Keep all existing image containers, aspect ratios, rounded corners, overlays, gradients and hover effects working exactly as they currently do.
+Use object-fit: cover where necessary so photographs fill their existing containers properly.
+IMAGE SOURCES:
+Prefer images from Wikimedia Commons / Wikipedia-related public sources.
+For each image:
+Make sure the image is genuinely relevant to the person, venue, neighbourhood, building, event, musical movement, or historical subject represented by that section.
+Prefer historically or geographically accurate images rather than generic stock photography.
+Prefer Wikimedia Commons images with clear reusable licences such as Public Domain, CC0, CC BY, or CC BY-SA.
+Do not use copyrighted commercial photography with unclear reuse rights.
+Do not use random image APIs such as Unsplash Source or dynamically changing placeholder services.
+Whenever practical, download the images into the repository rather than hotlinking them.
+Organise them somewhere sensible, for example:
+assets/\
+images/\
+artists/\
+venues/\
+locations/\
+history/
+Give files clear descriptive names rather than names such as image1.jpg.
+For example:
+assets/images/artists/black-sabbath.jpg\
+assets/images/venues/town-hall-birmingham.jpg\
+assets/images/locations/digbeth.jpg
+If the site contains content about Birmingham musicians, bands, venues, neighbourhoods or musical history, search for images that actually correspond to those subjects.
+Examples might include:
+Black Sabbath
+UB40
+Duran Duran
+Birmingham Town Hall
+Symphony Hall
+Digbeth
+Broad Street
+Birmingham city centre
+historic Birmingham music venues
+Birmingham musical history
+Only use an example if it genuinely corresponds to the existing website content.
+ATTRIBUTION:
+Because Wikimedia Commons images may require attribution, create a small data structure or comment containing:
+image filename
+subject
+author/creator if available
+Wikimedia Commons source URL
+licence
+If appropriate for the current design, add a subtle "Image credits" / "Credits" section at the bottom of the website. Keep it visually unobtrusive and consistent with the existing design.
+Do not clutter individual cards with licence information.
+FALLBACK:
+If you cannot find a suitable confidently reusable photograph for a particular placeholder, KEEP THE EXISTING PLACEHOLDER rather than inserting an inaccurate or questionable image.
+Before making changes, inspect the whole project and determine:
+which components are actual UI icons and should remain icons
+which components are intended to be photographic placeholders
+Do NOT replace functional UI icons such as:
+navigation icons
+play buttons
+arrows
+location pins
+menu icons
+social icons
+decorative interface symbols
+Only replace image-content placeholders.
+After completing the work:
+Verify every new image path works.
+Verify the site still runs as a static HTML/CSS/JavaScript project.
+Verify it remains compatible with GitHub Pages.
+Check for broken images.
+Make sure there are no layout shifts caused by the replacements.
+Give me a short summary of which placeholders you replaced and which images you selected.

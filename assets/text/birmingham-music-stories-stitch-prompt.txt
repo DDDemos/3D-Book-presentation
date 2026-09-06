@@ -1,0 +1,151 @@
+Birmingham Music Stories
+
+Design a visually striking, interactive cultural heritage website called **Birmingham Music Stories**.
+
+The website should celebrate Birmingham's musical heritage by connecting **music, people and places across the city**.
+
+This is not a commercial music-streaming website and should not look like Spotify or a generic corporate landing page. It should feel like a contemporary digital museum exhibition: editorial, atmospheric, artistic and distinctly connected to Birmingham.
+
+## Visual direction
+
+Combine the feeling of:
+
+* archival music photography
+* old gig posters and record sleeves
+* Birmingham's industrial heritage
+* contemporary museum/exhibition design
+* subtle analogue textures and print imperfections
+
+Use a sophisticated dark visual style with:
+
+* deep charcoal / near-black backgrounds
+* warm off-white typography
+* muted brass or amber accents
+* occasional deep red accents
+* large expressive editorial typography
+* subtle grain and texture
+* strong use of spacing and oversized imagery
+
+Avoid a generic AI-generated SaaS aesthetic, excessive rounded cards, glassmorphism and bright neon gradients.
+
+The design should feel credible enough to belong to a Birmingham cultural organisation or music heritage exhibition.
+
+## Homepage structure
+
+### 1. Hero
+
+Large title:
+
+**BIRMINGHAM
+MUSIC STORIES**
+
+Subtitle:
+
+**The sounds, people and places that helped shape a city.**
+
+Include a strong visual composition inspired by music posters, photography and Birmingham's industrial architecture.
+
+Primary call to action:
+
+**Explore the stories ↓**
+
+Include a small line such as:
+
+**Heavy Metal • Reggae • New Wave • Bhangra • Rock • Soul**
+
+### 2. Introduction
+
+Create a short editorial introduction explaining that Birmingham's musical identity has been shaped by different communities, neighbourhoods, venues and generations.
+
+Use large typography rather than a standard text box.
+
+### 3. Explore Birmingham's Sounds
+
+Create a visually interesting collection of categories:
+
+**Heavy Metal**
+**Reggae**
+**New Wave**
+**Bhangra**
+**Rock & Pop**
+
+Each category should feel like an exhibition poster rather than a normal UI card.
+
+Hovering over a category should feel interactive.
+
+### 4. Birmingham Sound Map
+
+Create a stylised illustrated map of Birmingham rather than a conventional Google Map.
+
+Place several interactive-looking locations around the map, including:
+
+* Aston
+* Handsworth
+* Birmingham City Centre
+* Broad Street
+
+The design should suggest that clicking a location will reveal the music stories connected with that part of Birmingham.
+
+Title:
+
+**A City of Sound**
+
+Subtitle:
+
+**Explore the places behind the music.**
+
+### 5. Featured Stories
+
+Create editorial story panels for:
+
+**Black Sabbath — Aston**
+*The sound that helped define heavy metal.*
+
+**Steel Pulse — Handsworth**
+*Reggae, identity and Birmingham's multicultural sound.*
+
+**UB40 — Birmingham**
+*Reggae from the city to audiences around the world.*
+
+**Duran Duran — The Rum Runner**
+*New Romantic music emerging from Birmingham nightlife.*
+
+**Electric Light Orchestra — Birmingham**
+*Rock, pop and orchestration on an international scale.*
+
+Each story should prominently display the artist, place and musical movement.
+
+### 6. Music Through Time
+
+Design a horizontal visual timeline moving from the late 1960s through the 1970s, 1980s and into contemporary Birmingham music.
+
+Keep it highly visual rather than text heavy.
+
+### 7. Final section
+
+Large statement:
+
+**Every city has a soundtrack.
+This one changed music.**
+
+Button:
+
+**Discover Birmingham**
+
+Footer:
+
+**Birmingham Music Stories — A digital exploration of the city's musical heritage.**
+
+## Interaction design
+
+Design clear states for:
+
+* hovering over story cards
+* selecting music genres
+* selecting locations on the Birmingham map
+* opening a featured story
+* scrolling through the timeline
+
+The final result should feel immersive and exploratory while remaining realistic enough to implement as a simple responsive website.
+
+Design both a polished **desktop view** and a clear **mobile-responsive version**.

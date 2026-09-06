@@ -122,7 +122,15 @@ no selector. Configure at most one item of each type (the first of each type is 
 Omit `resources` or use an empty array for slides that need no panel.
 
 The example above demonstrates a prompt and an example.com URL; it is not part of the active
-25-slide deck. Attach your own resources to the appropriate slide objects as needed.
+25-slide deck. Slide 2 includes the full Birmingham Music Stories design prompt from
+[birmingham-music-stories-stitch-prompt.txt](assets/text/birmingham-music-stories-stitch-prompt.txt).
+Slide 14 includes the implementation prompt from
+[birmingham-music-stories-ai-studio-prompt.txt](assets/text/birmingham-music-stories-ai-studio-prompt.txt).
+Slide 22 includes the photo replacement prompt from
+[birmingham-music-stories-photos-prompt.txt](assets/text/birmingham-music-stories-photos-prompt.txt).
+Slide 23 includes the About Me page prompt from
+[birmingham-music-stories-about-me-prompt.txt](assets/text/birmingham-music-stories-about-me-prompt.txt).
+Attach further resources to the appropriate slide objects as needed.
 Text and URLs drawn inside a slide image do not automatically create resource controls.
 Resource text is separate from the slide's accessible `description`.
 
