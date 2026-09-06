@@ -12,12 +12,16 @@
 // ============================================================================
 
 import * as THREE from "three";
-import { makePageBackTexture } from "./presentation.js?v=3";
+import { makePageBackTexture } from "./textures.js?v=4";
 
 export const PAGE_WIDTH = 1.5;
 export const PAGE_HEIGHT = 2.0;
 const PAGE_THICKNESS = 0.0045;
-const COVER_THICKNESS = 0.06;
+const COVER_THICKNESS = 0.105;
+const COVER_WIDTH = PAGE_WIDTH + 0.05;
+const COVER_HEIGHT = PAGE_HEIGHT + 0.08;
+const COVER_CORNER_RADIUS = 0.075;
+const COVER_BEVEL = 0.018;
 const SPINE_WIDTH = 0.16;
 const LAYER_GAP = 0.0006; // extra epsilon between stacked layers to prevent z-fighting
 
@@ -31,6 +35,45 @@ const REDUCED_MOTION_DURATION_MS = 220;
 
 function easeInOutCubic(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+/** Rigid cover board with rounded corners, softly beveled edges, and readable face UVs. */
+function buildCoverGeometry(side) {
+  // Extrusion bevels expand the outline, so inset the path to preserve the final dimensions.
+  const x = COVER_WIDTH / 2 - COVER_BEVEL;
+  const y = COVER_HEIGHT / 2 - COVER_BEVEL;
+  const radius = COVER_CORNER_RADIUS - COVER_BEVEL;
+  const shape = new THREE.Shape();
+  shape.moveTo(-x + radius, -y);
+  shape.lineTo(x - radius, -y);
+  shape.quadraticCurveTo(x, -y, x, -y + radius);
+  shape.lineTo(x, y - radius);
+  shape.quadraticCurveTo(x, y, x - radius, y);
+  shape.lineTo(-x + radius, y);
+  shape.quadraticCurveTo(-x, y, -x, y - radius);
+  shape.lineTo(-x, -y + radius);
+  shape.quadraticCurveTo(-x, -y, -x + radius, -y);
+  shape.closePath();
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: COVER_THICKNESS - 2 * COVER_BEVEL,
+    steps: 1, curveSegments: 10,
+    bevelEnabled: true, bevelThickness: COVER_BEVEL,
+    bevelSize: COVER_BEVEL, bevelSegments: 4,
+  });
+  const position = geometry.getAttribute("position");
+  const normal = geometry.getAttribute("normal");
+  const uv = geometry.getAttribute("uv");
+  // Cap UVs cover the entire artwork; reverse the far face to keep text readable when closed.
+  for (const group of geometry.groups) {
+    if (group.materialIndex !== 0) continue;
+    for (let i = group.start; i < group.start + group.count; i++) {
+      const u = (position.getX(i) + x) / (2 * x);
+      uv.setXY(i, normal.getZ(i) < 0 ? 1 - u : u, (position.getY(i) + y) / (2 * y));
+    }
+  }
+  uv.needsUpdate = true;
+  geometry.translate(side * COVER_WIDTH / 2, 0, -COVER_THICKNESS / 2 + COVER_BEVEL);
+  return geometry;
 }
 
 /**
@@ -170,14 +213,8 @@ export class Book3D {
     this.leftStack.scale.set(-w, h, 0.0001);
     this.group.add(this.leftStack);
 
-    // Covers (thicker boxes so they read as rigid board, not paper).
-    // Built as two separate geometries (rather than mirroring one with a
-    // negative scale) so their UVs — and therefore cover artwork — read
-    // correctly instead of backwards.
-    const backCoverGeo = new THREE.BoxGeometry(w, h, COVER_THICKNESS);
-    backCoverGeo.translate(w / 2, 0, 0);
-    const frontCoverGeo = new THREE.BoxGeometry(w, h, COVER_THICKNESS);
-    frontCoverGeo.translate(-w / 2, 0, 0);
+    const backCoverGeo = buildCoverGeometry(1);
+    const frontCoverGeo = buildCoverGeometry(-1);
 
     // The front cover doubles as the book's first "page": closed (rotation
     // PI) it sits on the right showing its art to the viewer; opening it
@@ -187,30 +224,23 @@ export class Book3D {
     // occluded by the box's own bulk, regardless of material.side) — so the
     // art material goes on BOTH those faces, not just the "outer" one.
     this.frontCoverMat = neutralMaterial(null);
+    const leatherEdge = new THREE.MeshStandardMaterial({ color: 0x231a12, roughness: 0.72 });
     this.frontCover = new THREE.Mesh(frontCoverGeo, [
-      new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 0.7 }),
-      new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 0.7 }),
-      new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 0.7 }),
-      new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 0.7 }),
       this.frontCoverMat,
-      this.frontCoverMat,
+      leatherEdge,
     ]);
     this.frontCover.rotation.y = Math.PI; // starts closed
     this.group.add(this.frontCover);
 
     this.backCoverMat = neutralMaterial(null);
     this.backCover = new THREE.Mesh(backCoverGeo, [
-      new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 0.7 }),
-      new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 0.7 }),
-      new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 0.7 }),
-      new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 0.7 }),
       this.backCoverMat,
-      new THREE.MeshStandardMaterial({ color: 0x2a1e14, roughness: 0.8 }),
+      leatherEdge,
     ]);
     this.group.add(this.backCover);
 
     // Spine
-    const spineGeo = new THREE.BoxGeometry(SPINE_WIDTH, h + 0.02, 1);
+    const spineGeo = new THREE.BoxGeometry(SPINE_WIDTH, COVER_HEIGHT - 0.02, 1);
     this.spineMat = neutralMaterial(null);
     this.spine = new THREE.Mesh(spineGeo, [
       new THREE.MeshStandardMaterial({ color: 0x2a1e14, roughness: 0.75 }),
@@ -228,7 +258,7 @@ export class Book3D {
     const groundMat = new THREE.ShadowMaterial({ opacity: 0.22 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -PAGE_HEIGHT / 2 - 0.02;
+    ground.position.y = -COVER_HEIGHT / 2 - 0.02;
     ground.receiveShadow = true;
     this.group.add(ground);
 
@@ -262,7 +292,7 @@ export class Book3D {
   // -------------------------------------------------------------------
 
   setSlideCount(n) {
-    this._numSlides = Math.max(1, n);
+    this._numSlides = Math.max(0, n);
     this._layoutStacks(-1);
   }
 
@@ -285,6 +315,23 @@ export class Book3D {
     this.rightPageMat.map = texture;
     this.rightPageMat.needsUpdate = true;
     this.rightPage.visible = true;
+  }
+
+  replaceSlideTexture(texture) {
+    this.flipFrontMat.map = null;
+    this.flipFrontMat.needsUpdate = true;
+    if (texture !== undefined) this.setRightPageTexture(texture);
+  }
+
+  /** Restore an arbitrary stable position without simulating intervening flips. */
+  setState(contentIndex, texture) {
+    this._animation = null;
+    this.flipMesh.visible = false;
+    this.flipFrontMat.map = null;
+    this.frontCover.rotation.y = contentIndex < 0 ? Math.PI : 0;
+    this.rightPageMat.map = texture;
+    this.rightPageMat.needsUpdate = true;
+    this._layoutStacks(contentIndex);
   }
 
   setFrontCoverTexture(texture) {
@@ -320,7 +367,9 @@ export class Book3D {
     // Each cover rises to meet the spine plane whenever nothing else (no
     // page, no bulk) is sitting in front of it on its side, so the view
     // never reads as a recessed, sunken gap.
-    this.frontCover.position.z = contentIndex <= 0 ? nearZ : deepZ;
+    this.frontCover.position.z = contentIndex < 0
+      ? COVER_THICKNESS / 2 + LAYER_GAP
+      : contentIndex === 0 ? nearZ : deepZ;
     this.backCover.position.z = remaining <= 0 ? nearZ : deepZ;
     this.spine.position.z = (deepZ + 0) / 2;
     this.spine.scale.z = Math.abs(deepZ) + COVER_THICKNESS;
@@ -366,8 +415,8 @@ export class Book3D {
    * @param {boolean} reducedMotion
    * @param {() => void} onComplete
    */
-  flip({ direction, frontTexture, upcomingRightTexture, reducedMotion, onComplete }) {
-    if (this._animation) return;
+  flip({ direction, frontTexture, upcomingRightTexture, reducedMotion, duration, onComplete }) {
+    if (this._animation) throw new Error("A page turn is already active");
 
     this.flipFrontMat.map = frontTexture;
     this.flipFrontMat.needsUpdate = true;
@@ -393,7 +442,7 @@ export class Book3D {
     this._animation = {
       direction,
       start: performance.now(),
-      duration: reducedMotion ? REDUCED_MOTION_DURATION_MS : DEFAULT_DURATION_MS,
+      duration: duration ?? (reducedMotion ? REDUCED_MOTION_DURATION_MS : DEFAULT_DURATION_MS),
       curl: reducedMotion ? 0.15 : CURL_STRENGTH,
       lift: reducedMotion ? 0.03 : LIFT_HEIGHT,
       onComplete: () => {
@@ -416,8 +465,8 @@ export class Book3D {
    * paper. "forward" opens it (rotation PI -> 0, swinging left); "backward"
    * closes it again (0 -> PI, swinging back over the right side).
    */
-  flipCover({ direction, upcomingRightTexture, reducedMotion, onComplete }) {
-    if (this._animation) return;
+  flipCover({ direction, upcomingRightTexture, reducedMotion, duration, onComplete }) {
+    if (this._animation) throw new Error("A cover turn is already active");
 
     if (direction === "forward") {
       // Reveal slide 0 underneath right away, so it shows progressively as
@@ -435,9 +484,11 @@ export class Book3D {
     this._animation = {
       kind: "cover",
       start: performance.now(),
-      duration: reducedMotion ? REDUCED_MOTION_DURATION_MS : DEFAULT_DURATION_MS,
+      duration: duration ?? (reducedMotion ? REDUCED_MOTION_DURATION_MS : DEFAULT_DURATION_MS),
       fromAngle,
       toAngle,
+      fromZ: this.frontCover.position.z,
+      toZ: direction === "forward" ? -COVER_THICKNESS / 2 - LAYER_GAP : COVER_THICKNESS / 2 + LAYER_GAP,
       onComplete: () => {
         if (direction === "backward") {
           this.rightPage.visible = false;
@@ -460,6 +511,7 @@ export class Book3D {
 
     if (anim.kind === "cover") {
       this.frontCover.rotation.y = anim.fromAngle + (anim.toAngle - anim.fromAngle) * eased;
+      this.frontCover.position.z = anim.fromZ + (anim.toZ - anim.fromZ) * eased;
     } else {
       const angle = anim.direction === "forward" ? eased * Math.PI : Math.PI - eased * Math.PI;
       this._updateFlipGeometry(angle, anim.curl, anim.lift);
@@ -501,10 +553,22 @@ export class Book3D {
   /** Called by Presentation after contentIndex changes, to reposition stacks. */
   syncLayout(contentIndex) {
     this._layoutStacks(contentIndex);
+    this.flipFrontMat.map = null;
+    if (contentIndex < 0 || contentIndex >= this._numSlides) this.rightPageMat.map = null;
   }
 
   dispose() {
-    this._flipGeometry.dispose();
-    this._pageBackTexture.dispose();
+    this._animation = null;
+    const geometries = new Set();
+    const materials = new Set();
+    this.group.traverse(node => {
+      if (node.geometry) geometries.add(node.geometry);
+      if (node.material) for (const mat of [].concat(node.material)) materials.add(mat);
+    });
+    // Slide textures belong to the cache; only book-owned textures go here.
+    for (const tex of new Set([this._pageBackTexture, this.frontCoverMat.map, this.backCoverMat.map, this.spineMat.map])) tex?.dispose();
+    for (const geo of geometries) geo.dispose();
+    for (const mat of materials) mat.dispose();
+    this.group.removeFromParent();
   }
 }

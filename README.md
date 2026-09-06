@@ -1,167 +1,141 @@
 # 3D Book Presentation
 
-An interactive presentation delivered as a physical, page-turning 3D book, built with
-[Three.js](https://threejs.org/). Every page turn is a real bending-paper animation, not a
-texture swap — the whole thing is plain HTML, CSS and vanilla JavaScript with **no build step,
-no npm, no bundler**. Commit it, push it, and GitHub Pages serves it as-is.
+A page-turning Three.js presentation with a numbered index, an accessible 2D reading view,
+and an optional developer texture editor. Plain HTML, CSS, and ES modules: no build step,
+package installation, backend, or bundler is required to serve it.
 
-> **Sample content:** `assets/slides/slide-01.png` through `slide-03.png` and
-> `assets/book/cover-front.png` are placeholder artwork so the book isn't empty out of the box.
-> `assets/book/cover-back.jpg` and `spine.jpg` aren't provided, so those two fall back to a
-> generated placeholder material — see [section 4](#4-changing-the-cover--spine-artwork) to
-> replace any of this with your own images.
+## Run locally
 
-## 1. Running it locally
-
-Because the page loads JavaScript as ES modules, you can't just double-click `index.html`
-(browsers block module `fetch()` on the `file://` protocol). Serve the folder with any static
-file server instead. The simplest option, using Python (already on most machines):
-
-```bash
+```sh
 python3 -m http.server 8000
 ```
 
-Then open:
+Open `http://localhost:8000`. ES modules require an HTTP server; opening `index.html`
+directly from the filesystem does not work.
 
-```
-http://localhost:8000
-```
+## Content and dev mode
 
-Any other static server works too (`npx serve`, VS Code's "Live Server" extension, etc.) — the
-site has no server-side requirements at all.
-
-## 2. How the project is organized
-
-```
-index.html          Page shell, import map, UI markup
-styles.css           All styling
-js/
-  main.js             Scene bootstrap: renderer, camera, lights, controls, render loop
-  book.js             The procedural 3D book (geometry, materials, page-turn animation)
-  presentation.js      *** central config for slides + cover art, texture loading/caching ***
-  ui.js               DOM wiring: buttons, keyboard, click-to-navigate, editor panel
-assets/
-  slides/             Your slide images (slide-01.jpg, slide-02.jpg, ...)
-  book/               Cover-front / cover-back / spine artwork
-.nojekyll             Tells GitHub Pages not to run Jekyll on this repo
-```
-
-## 3. Changing the slides
-
-Open [`js/presentation.js`](js/presentation.js) and edit the `slides` array — that is the
-**only** place slide filenames live:
+Edit **`js/presentation.js`**. It contains the presentation title, slide metadata,
+cover image paths, and the code-only developer switch:
 
 ```js
+export const DEV_MODE = false;
+export const presentationTitle = "My presentation";
 export const slides = [
-  "./assets/slides/slide-01.jpg",
-  "./assets/slides/slide-02.jpg",
-  "./assets/slides/slide-03.jpg",
+  {
+    src: "./assets/slides/slide-01.png",
+    title: "Introduction",
+    description: "The text or image description that readers need to understand this slide.",
+  },
 ];
-```
-
-Add or remove lines to add or remove pages from the book — nothing else in the code needs to
-change. The book supports well over 20 slides out of the box (only a handful of textures are
-ever loaded into memory at once — see "Performance" below).
-
-Paths are relative (`./assets/...`), so this works whether the site is hosted at the root of a
-domain or in a GitHub Pages *project* subdirectory (`https://user.github.io/repo-name/`).
-
-If a listed image is missing or fails to load, the book shows a tasteful placeholder (a
-gradient with the slide number) instead of breaking — check the browser console for a warning
-naming the missing file.
-
-## 4. Changing the cover / spine artwork
-
-Also in `js/presentation.js`:
-
-```js
 export const bookConfig = {
-  frontCover: "./assets/book/cover-front.jpg",
-  backCover: "./assets/book/cover-back.jpg",
-  spine: "./assets/book/spine.jpg",
+  frontCover: "./assets/book/cover-front.png?v=2",
+  backCover: "./assets/book/cover-back.png",
+  spine: "./assets/book/spine.png",
 };
 ```
 
-Drop your own images at those paths (or point the config at different filenames) and reload.
-Missing cover art also falls back to a placeholder rather than crashing the page.
+Add, remove, or reorder objects to change the presentation. `src` is the image path,
+`title` supplies the index tooltip and reading-view heading, and `description` is optional
+plain text displayed below the image in reading view. Blank or missing titles become
+“Slide N.” For presentations containing text, include that text or an equivalent description
+so the content is available to screen readers. Images are not automatically transcribed.
 
-## 5. Adding / removing presentation pages
+The three supplied slides are sample artwork. The book uses the supplied leather-and-gold
+front cover, back cover, and spine PNGs. The content pages
+are 3:4 portrait; other image shapes are contained with paper-colored margins. Cover and spine textures retain the entire source image, fitted to their mesh surfaces
+without cropping the artwork. The cover boards are 75% thicker than the original prototype,
+with rounded corners, beveled leather edges, and a slight overhang beyond the paper pages. Relative asset paths
+work at a domain root or in a GitHub Pages project subdirectory.
 
-Same answer as #3 — add or delete an entry in the `slides` array. Slide images should roughly
-match a **3:4 (portrait) aspect ratio** for the best fit; anything else is automatically
-letterboxed ("contain" fit) onto the page rather than stretched or cropped.
+## Navigation
 
-## 6. The in-browser texture editor (temporary previews only)
+- **Previous / Next:** one normal page turn (about 900ms).
+- **Left / Right arrow, Space:** previous/next when focus is outside interactive controls.
+  Space retains its normal action on a focused button.
+- **Index:** opens a compact grid of content numbers **1–N**, plus separate **Front cover**
+  and **Back cover** entries. The counter uses the same numbering.
+- Hover or keyboard-focus a number to see its slide name. Touch devices show names under
+  the numbers; a single tap selects the page.
+- Use Tab, arrow keys, Home/End, and Enter/Space inside the index. Escape, the close button,
+  selecting a page, or clicking outside closes it. Selection/Escape returns focus to Index.
+- Index jumps flip each intervening page at `min(180ms, 2000ms / numberOfTurns)` per page.
+  Long jumps target roughly two seconds of animation, excluding image loading and frame-rate
+  delays. Choosing the current page simply closes the popup.
+- Navigation and image mutation controls are disabled during loading/transitions. Further
+  navigation requests are ignored until the current operation finishes.
 
-Click the **⚙ Edit** button (bottom of the screen) to open a small panel that lets you:
+Covers remain the first and last positions. Empty and single-slide presentations are supported.
+The camera stays fixed at a three-quarter angle and fits the book and its turning-page envelope
+on resize. With reduced motion enabled, index jumps are immediate and ordinary page turns
+use a shorter, gentler animation.
 
-- Pick a slide from a dropdown and replace its image
-- Replace the front cover, back cover, and spine images
+## Reading view and recovery
 
-These use `URL.createObjectURL()` on a file you pick locally, so you see the change on the 3D
-book instantly.
+**Reading view** displays the current original image, heading, and optional description.
+It shares the index and navigation controls with 3D; page changes are immediate. Switching
+back to **3D view** restores the current page without replaying intervening flips. Covers are
+included. Missing images show an inline message while titles and descriptions remain readable.
 
-**Important:** this is a live, in-memory preview only. Because this is a static site with no
-server or database, there is nothing to write the image back to — closing or reloading the tab
-discards it. To make a change permanent:
+Reading view initializes independently of Three.js. If the CDN import, WebGL initialization,
+or startup fails—or takes longer than 15 seconds—the presentation stays usable in reading view
+and shows **Retry 3D**. Late results from timed-out attempts cannot replace the active runtime.
+Some browsers cache failed module downloads; if Retry still fails after connectivity returns,
+reload the page. No external dependency is needed for reading view itself.
 
-1. Save the real image file into `assets/slides/` or `assets/book/`.
-2. Update the matching path in `js/presentation.js`.
-3. Commit and push.
+## Developer editing
 
-## 7. Deploying with GitHub Pages
+Set `DEV_MODE = true` in `js/presentation.js` and reload to show **Edit** beside Index and the
+view switch. The editor's markup and listeners are created only in dev mode. There is no URL
+parameter or browser-storage setting to enable it. This is a presentation UI setting, not
+an authentication or security boundary: all served source code is public to visitors.
 
-No build, no install, no `dist/` folder. Just:
+You can replace a content slide, front cover, back cover, or spine using a local image. Edits
+appear in both views where applicable, survive navigation through the entire presentation,
+and are retained only in the current tab. Invalid images leave the previous image intact.
+Newer uploads take precedence if image decoding completes out of order.
 
-```bash
-git add .
-git commit -m "Update presentation"
-git push
+To keep changes, save the images into `assets/`, update the configuration, and commit them.
+Reloading discards previews. Saving/exporting previews and reordering through the editor are
+not implemented.
+
+## Project structure
+
+- `index.html`, `styles.css`: shared page shell, controls, popup, reading view, and styling.
+- `js/presentation.js`: code configuration, view/page state, navigation lock, upload ownership.
+- `js/ui.js`: DOM-only controls, accessible index, reading view, and dev-only editor.
+- `js/main.js`, `js/startup.js`: lightweight entry point, startup deadline, retry and cleanup.
+- `js/scene.js`: optional Three.js runtime, camera, lighting, and resize handling.
+- `js/book.js`: procedural covers, spine, page stacks, bending pages, and direct layout restoration.
+- `js/textures.js`, `js/texture-cache.js`: image composition and nearby-slide caching with
+  separately retained uploaded textures.
+- `js/render-loop.js`: renders only after changes or during animations; pauses while hidden.
+- `tests/run.mjs`: dependency-free controller, cache, startup, and render-scheduling checks.
+- `tests/browser.html`: repeatable browser integration checks using isolated application frames.
+
+## Validation
+
+Serving the project does not require Node. Developers can optionally run the checks with
+Node 22 or newer:
+
+```sh
+node tests/run.mjs
 ```
 
-Then, in the GitHub repository: **Settings → Pages → Source**, choose the branch you pushed
-(typically `main`) and the root folder, and save. GitHub Pages will serve `index.html` as-is.
-The included `.nojekyll` file stops GitHub from running its default Jekyll processing over the
-site (which could otherwise interfere with the `js/` and `assets/` folders).
+Open `http://localhost:8000/tests/browser.html` to run the browser integration checks.
+They exercise the real 3D runtime and image-upload handler, including dev mode, longer decks,
+reading-view recovery, and narrow portrait/landscape layouts. Test fixtures enable dev mode
+only inside their own frames; they do not change the production configuration.
 
-`npm` / Node.js are not needed at any point in this workflow — there is nothing to install.
+Manual browser acceptance checks should include index clicks and focus/hover names, keyboard
+navigation, every cover/content position, reading/3D synchronization, narrow layouts, browser
+zoom, reduced motion, and dev mode on/off. Also test failed startup and image loading. The
+controller suite uses fake textures and an injected renderer clock; it does not replace WebGL
+or screen-reader testing.
 
-## Controls
+## GitHub Pages
 
-| Action | How |
-|---|---|
-| Next slide | Right arrow, Space, or the "Next" button |
-| Previous slide | Left arrow, or the "Previous" button |
-| Open/close the texture editor | "⚙ Edit" button |
-
-The camera is fixed at a single 3/4 angle — it never rotates or zooms on drag/scroll, and it
-only ever repositions itself automatically on window resize, to keep the whole book in frame at
-any aspect ratio. Clicking directly on the book to turn a page is implemented but disabled by
-default (`ENABLE_CLICK_TO_NAVIGATE` in `js/ui.js`) — navigation only happens via the buttons and
-keyboard.
-
-## The book as bookends
-
-The presentation navigates cover-to-cover, not just through the `slides` array: the closed front
-cover is the first "slide", the closed back cover is the last, and your content sits in between.
-Pressing Next from the very start swings the front cover open (a rigid hinge, unlike the bending
-pages) to reveal `slides[0]`; pressing Next past the last slide swings the last page over to
-reveal the closed back cover. No extra configuration is needed for this — it's driven by the
-same `slides` array and `bookConfig` described above.
-
-## Notes on the implementation
-
-- The book (covers, spine, pages, page stacks) is built entirely from procedural Three.js
-  geometry — there's no `.glb`/`.gltf` model to load.
-- The turning page is a subdivided plane whose vertices are bent every frame with a small
-  trig-based deformation (curl increases toward the outer edge, peaks mid-turn, and flattens
-  out at both ends) — not a rigid rotation. It has a hair of real thickness, with separate
-  front/back materials so both sides render correctly and never appear mirrored. The front cover
-  itself, by contrast, swings rigidly (no bend) since it's a stiff board, not a sheet of paper.
-- Only a handful of slide textures are kept in memory at a time (a small cache around the
-  current slide); everything else is composited on demand and disposed when it scrolls out of
-  that window, so the site stays light even with a large `slides` array.
-- If reduced motion is requested at the OS/browser level, the page-turn animation shortens and
-  loses most of its curl, but navigation itself keeps working.
-- If WebGL can't initialize at all, the page shows a plain-language message instead of a blank
-  screen.
+Commit and push the files, then configure the repository's Pages source to the desired branch
+and root directory. No generated output folder is required. `.nojekyll` prevents Jekyll
+processing. Three.js is pinned to version 0.160.0 in the import map; 3D requires that CDN to be
+reachable. Reading view and the local content remain available if it is not.
