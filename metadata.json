@@ -1,6 +1,0 @@
-{
-  "name": "Atelier Exhibition 3D Book Presentation",
-  "description": "An interactive 3D luxury book presentation with bending page-turn physics, curatorial lighting, and slide inspection.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

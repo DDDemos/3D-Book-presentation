@@ -1,143 +1,167 @@
-# Atelier Exhibition — 3D Interactive Book Presentation
+# 3D Book Presentation
 
-A pure static, zero-build 3D book presentation website built with vanilla HTML, CSS, JavaScript, and Three.js (loaded directly via browser ES modules). Features realistic paper-bending page turns, curatorial lighting transitions, slide inspection, and smooth constrained spatial perspective.
+An interactive presentation delivered as a physical, page-turning 3D book, built with
+[Three.js](https://threejs.org/). Every page turn is a real bending-paper animation, not a
+texture swap — the whole thing is plain HTML, CSS and vanilla JavaScript with **no build step,
+no npm, no bundler**. Commit it, push it, and GitHub Pages serves it as-is.
 
-Designed for instant deployment to **GitHub Pages** without `npm`, Node.js, or build steps.
+> **Sample content:** `assets/slides/slide-01.png` through `slide-03.png` and
+> `assets/book/cover-front.png` are placeholder artwork so the book isn't empty out of the box.
+> `assets/book/cover-back.jpg` and `spine.jpg` aren't provided, so those two fall back to a
+> generated placeholder material — see [section 4](#4-changing-the-cover--spine-artwork) to
+> replace any of this with your own images.
 
----
+## 1. Running it locally
 
-## Architecture Overview
+Because the page loads JavaScript as ES modules, you can't just double-click `index.html`
+(browsers block module `fetch()` on the `file://` protocol). Serve the folder with any static
+file server instead. The simplest option, using Python (already on most machines):
 
-This project is a 100% pure client-side web application. It requires no compilers, bundlers, or server-side runtimes.
-
-```text
-├── index.html            # Main markup matching the curatorial Stitch design
-├── styles.css            # Vanilla CSS styling with typographic & color tokens
-├── .nojekyll             # Tells GitHub Pages not to process files with Jekyll
-├── js/
-│   ├── config.js         # Presentation configuration (slides, covers, titles)
-│   ├── book.js           # Procedural Three.js 3D book & bending page physics
-│   ├── presentation.js   # State manager & Web Audio paper rustle synthesizer
-│   ├── ui.js             # UI controls, hotspots, camera sliders & file previews
-│   └── main.js           # Application entry point & WebGL initialization
-└── assets/
-    ├── book/             # Hardcover textures (front, back, spine, travertine)
-    └── slides/           # Presentation slide images (slide-01.jpg, etc.)
-```
-
-### Key Technical Features
-
-1. **Procedural 3D Book Geometry**:
-   - Custom hardcover front and back boards with debossed gold foil cloth texture.
-   - Curved cloth-bound spine.
-   - Dynamic page stacks (paper blocks) that subtly change thickness as spreads are turned.
-   - Travertine stone pedestal base with soft contact shadows.
-
-2. **Inextensible Page Bending Mechanics**:
-   - Subdivided mesh with procedural vertex deformation.
-   - Non-rigid paper curl: outside edge lifts first, curvature arches across the spine at mid-turn, and unrolls smoothly to rest flat.
-   - Supports forward (right-to-left) and backward (left-to-right) navigation.
-   - Preserves correct texture orientation on the reverse side (no mirrored text or images).
-
-3. **Curatorial Lighting & Perspective**:
-   - Toggle between **Daylight** (soft neutral overhead museum daylight) and **Chiaroscuro** (dramatic evening raking light).
-   - Constrained orbit interaction preventing disorientation.
-   - One-click **Isometric** camera reset.
-
-4. **Tactile Rag Rustle Audio**:
-   - Procedurally synthesized paper friction sound via the Web Audio API (no external MP3/WAV audio files required).
-
----
-
-## How to Customize
-
-### 1. Adding Slides
-1. Export your slides from PowerPoint, Keynote, or Figma as JPG, PNG, or WebP images (recommended ratio: ~3:4, e.g. 1200×1600px).
-2. Save your images into `./assets/slides/`:
-   ```text
-   assets/slides/slide-13.jpg
-   assets/slides/slide-14.jpg
-   ```
-3. Open `js/config.js` and append your new slide paths to the `slides` array:
-   ```javascript
-   slides: [
-     "./assets/slides/slide-01.jpg",
-     ...
-     "./assets/slides/slide-13.jpg",
-     "./assets/slides/slide-14.jpg"
-   ]
-   ```
-4. In `js/config.js`, add a corresponding spread entry in the `spreads` array pairing the left and right slides:
-   ```javascript
-   {
-     id: 7,
-     leftSlideIndex: 12,
-     rightSlideIndex: 13,
-     title: "Plate XIII & XIV — The Terrace",
-     subtitle: "South-facing solar colonnade",
-     annotation1: "Archival silver gelatin print.",
-     annotation2: "Monolithic slab transition."
-   }
-   ```
-
-### 2. Removing Slides
-1. Remove unwanted image paths from the `slides` array in `js/config.js`.
-2. Remove or adjust the corresponding entries in the `spreads` array.
-3. The page indicators (`04 / 12 Spreads`) and navigation boundaries update automatically.
-
-### 3. Replacing Book Covers & Pedestal
-Replace the images in `./assets/book/`:
-- `cover-front.jpg`: Outside front cover
-- `cover-back.jpg`: Outside back cover
-- `spine.jpg`: Outside cloth spine
-- `travertine.jpg`: Pedestal stone material
-
-All paths in `js/config.js` are strictly relative (`./assets/...`) so they load correctly under custom domains or GitHub Pages subdirectories.
-
-### 4. Temporary Live Image Preview System
-You can test replacement images directly in the running browser without editing files:
-1. Click **Book Spec & Inspector** in the top-right toolbar.
-2. In the **Slide Texture Preview** section, choose a slide from the dropdown.
-3. Click **Select Replacement Image** and choose an image from your computer.
-4. The texture will update immediately on the 3D book leaf using browser `URL.createObjectURL()`.
-5. When satisfied, copy the image to `./assets/slides/` and commit to make it permanent.
-
----
-
-## Local Development
-
-To run locally, start any static HTTP server in the repository root:
-
-### Using Python 3:
 ```bash
 python3 -m http.server 8000
 ```
-Then open `http://localhost:8000` in your web browser.
 
-### Using Node / npx (optional):
-```bash
-npx serve .
+Then open:
+
+```
+http://localhost:8000
 ```
 
----
+Any other static server works too (`npx serve`, VS Code's "Live Server" extension, etc.) — the
+site has no server-side requirements at all.
 
-## Deploying to GitHub Pages
+## 2. How the project is organized
 
-1. Create a repository on GitHub (e.g. `atelier-3d-book`).
-2. Push all files from this project to the `main` branch.
-3. On GitHub, navigate to **Settings** → **Pages**.
-4. Under **Branch**, select `main` and root `/`.
-5. Click **Save**.
-6. GitHub Pages will publish your site at:
-   ```text
-   https://<your-username>.github.io/<repository-name>/
-   ```
-   Because all paths are strictly relative (`./styles.css`, `./js/...`, `./assets/...`), the site works out of the box with no extra configuration.
+```
+index.html          Page shell, import map, UI markup
+styles.css           All styling
+js/
+  main.js             Scene bootstrap: renderer, camera, lights, controls, render loop
+  book.js             The procedural 3D book (geometry, materials, page-turn animation)
+  presentation.js      *** central config for slides + cover art, texture loading/caching ***
+  ui.js               DOM wiring: buttons, keyboard, click-to-navigate, editor panel
+assets/
+  slides/             Your slide images (slide-01.jpg, slide-02.jpg, ...)
+  book/               Cover-front / cover-back / spine artwork
+.nojekyll             Tells GitHub Pages not to run Jekyll on this repo
+```
 
----
+## 3. Changing the slides
 
-## Keyboard Shortcuts
+Open [`js/presentation.js`](js/presentation.js) and edit the `slides` array — that is the
+**only** place slide filenames live:
 
-- **→ (Right Arrow)** or **Space**: Next folio page
-- **← (Left Arrow)**: Previous folio page
-- **Esc**: Close Curatorial Inspector drawer
+```js
+export const slides = [
+  "./assets/slides/slide-01.jpg",
+  "./assets/slides/slide-02.jpg",
+  "./assets/slides/slide-03.jpg",
+];
+```
+
+Add or remove lines to add or remove pages from the book — nothing else in the code needs to
+change. The book supports well over 20 slides out of the box (only a handful of textures are
+ever loaded into memory at once — see "Performance" below).
+
+Paths are relative (`./assets/...`), so this works whether the site is hosted at the root of a
+domain or in a GitHub Pages *project* subdirectory (`https://user.github.io/repo-name/`).
+
+If a listed image is missing or fails to load, the book shows a tasteful placeholder (a
+gradient with the slide number) instead of breaking — check the browser console for a warning
+naming the missing file.
+
+## 4. Changing the cover / spine artwork
+
+Also in `js/presentation.js`:
+
+```js
+export const bookConfig = {
+  frontCover: "./assets/book/cover-front.jpg",
+  backCover: "./assets/book/cover-back.jpg",
+  spine: "./assets/book/spine.jpg",
+};
+```
+
+Drop your own images at those paths (or point the config at different filenames) and reload.
+Missing cover art also falls back to a placeholder rather than crashing the page.
+
+## 5. Adding / removing presentation pages
+
+Same answer as #3 — add or delete an entry in the `slides` array. Slide images should roughly
+match a **3:4 (portrait) aspect ratio** for the best fit; anything else is automatically
+letterboxed ("contain" fit) onto the page rather than stretched or cropped.
+
+## 6. The in-browser texture editor (temporary previews only)
+
+Click the **⚙ Edit** button (bottom of the screen) to open a small panel that lets you:
+
+- Pick a slide from a dropdown and replace its image
+- Replace the front cover, back cover, and spine images
+
+These use `URL.createObjectURL()` on a file you pick locally, so you see the change on the 3D
+book instantly.
+
+**Important:** this is a live, in-memory preview only. Because this is a static site with no
+server or database, there is nothing to write the image back to — closing or reloading the tab
+discards it. To make a change permanent:
+
+1. Save the real image file into `assets/slides/` or `assets/book/`.
+2. Update the matching path in `js/presentation.js`.
+3. Commit and push.
+
+## 7. Deploying with GitHub Pages
+
+No build, no install, no `dist/` folder. Just:
+
+```bash
+git add .
+git commit -m "Update presentation"
+git push
+```
+
+Then, in the GitHub repository: **Settings → Pages → Source**, choose the branch you pushed
+(typically `main`) and the root folder, and save. GitHub Pages will serve `index.html` as-is.
+The included `.nojekyll` file stops GitHub from running its default Jekyll processing over the
+site (which could otherwise interfere with the `js/` and `assets/` folders).
+
+`npm` / Node.js are not needed at any point in this workflow — there is nothing to install.
+
+## Controls
+
+| Action | How |
+|---|---|
+| Next slide | Right arrow, Space, or the "Next" button |
+| Previous slide | Left arrow, or the "Previous" button |
+| Open/close the texture editor | "⚙ Edit" button |
+
+The camera is fixed at a single 3/4 angle — it never rotates or zooms on drag/scroll, and it
+only ever repositions itself automatically on window resize, to keep the whole book in frame at
+any aspect ratio. Clicking directly on the book to turn a page is implemented but disabled by
+default (`ENABLE_CLICK_TO_NAVIGATE` in `js/ui.js`) — navigation only happens via the buttons and
+keyboard.
+
+## The book as bookends
+
+The presentation navigates cover-to-cover, not just through the `slides` array: the closed front
+cover is the first "slide", the closed back cover is the last, and your content sits in between.
+Pressing Next from the very start swings the front cover open (a rigid hinge, unlike the bending
+pages) to reveal `slides[0]`; pressing Next past the last slide swings the last page over to
+reveal the closed back cover. No extra configuration is needed for this — it's driven by the
+same `slides` array and `bookConfig` described above.
+
+## Notes on the implementation
+
+- The book (covers, spine, pages, page stacks) is built entirely from procedural Three.js
+  geometry — there's no `.glb`/`.gltf` model to load.
+- The turning page is a subdivided plane whose vertices are bent every frame with a small
+  trig-based deformation (curl increases toward the outer edge, peaks mid-turn, and flattens
+  out at both ends) — not a rigid rotation. It has a hair of real thickness, with separate
+  front/back materials so both sides render correctly and never appear mirrored. The front cover
+  itself, by contrast, swings rigidly (no bend) since it's a stiff board, not a sheet of paper.
+- Only a handful of slide textures are kept in memory at a time (a small cache around the
+  current slide); everything else is composited on demand and disposed when it scrolls out of
+  that window, so the site stays light even with a large `slides` array.
+- If reduced motion is requested at the OS/browser level, the page-turn animation shortens and
+  loses most of its curl, but navigation itself keeps working.
+- If WebGL can't initialize at all, the page shows a plain-language message instead of a blank
+  screen.

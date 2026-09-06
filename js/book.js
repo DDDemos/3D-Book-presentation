@@ -1,873 +1,510 @@
+// ============================================================================
+// book.js
+//
+// Procedural 3D book: covers, spine, page stacks, and a bending page-turn
+// animation built from vertex manipulation on a subdivided plane (no GLB,
+// no animation library).
+//
+// Coordinate system (book group local space, unrotated):
+//   X = across the book (spine at X=0, right edge at +X, left edge at -X)
+//   Y = up (the spine's axis — page height)
+//   Z = the book's thickness axis (stacking direction / toward-away camera)
+// ============================================================================
+
+import * as THREE from "three";
+import { makePageBackTexture } from "./presentation.js";
+
+export const PAGE_WIDTH = 1.5;
+export const PAGE_HEIGHT = 2.0;
+const PAGE_THICKNESS = 0.0045;
+const COVER_THICKNESS = 0.06;
+const SPINE_WIDTH = 0.16;
+const LAYER_GAP = 0.0006; // extra epsilon between stacked layers to prevent z-fighting
+
+const FLIP_SEGMENTS_X = 26;
+const FLIP_SEGMENTS_Y = 10;
+const CURL_STRENGTH = 0.85; // radians of extra curl at the free edge, at peak
+const LIFT_HEIGHT = 0.16; // out-of-plane bulge height at peak
+
+const DEFAULT_DURATION_MS = 900;
+const REDUCED_MOTION_DURATION_MS = 220;
+
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
 /**
- * Atelier 3D Interactive Book Engine
- * Built with Three.js (ES Module from jsDelivr)
- * 
- * Procedural luxury hardcover book, deckled page stacks, travertine pedestal,
- * realistic inextensible bending page-turn mechanics with non-mirrored reverse UVs.
+ * Builds the double-layer (front + back) bendable page geometry.
+ * Front layer vertices come first, back layer vertices second, sharing the
+ * same (x0,y0) grid so a single animation pass can update both together.
  */
+function buildFlipGeometry() {
+  const segX = FLIP_SEGMENTS_X;
+  const segY = FLIP_SEGMENTS_Y;
+  const w = PAGE_WIDTH;
+  const h = PAGE_HEIGHT;
+  const half = PAGE_THICKNESS / 2;
 
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-import { config } from './config.js';
+  const positions = [];
+  const uvs = [];
+  const base = []; // { x0, y0, sign } per vertex, sign = +1 front layer / -1 back layer
+  const indices = [];
 
-export class BookScene {
-  constructor(containerElement, onInitComplete) {
-    this.container = containerElement;
-    this.onInitComplete = onInitComplete;
-
-    this.scene = null;
-    this.camera = null;
-    this.renderer = null;
-    this.lights = {};
-    
-    // Textures & Materials
-    this.textureLoader = new THREE.TextureLoader();
-    this.slideTextures = new Map();
-    this.coverTextures = {};
-    this.materials = {};
-
-    // 3D Objects
-    this.plinth = null;
-    this.bookGroup = null;
-    this.coverLeft = null;
-    this.coverRight = null;
-    this.spineMesh = null;
-    this.leftPageStack = null;
-    this.rightPageStack = null;
-    this.leftRestingPage = null;
-    this.rightRestingPage = null;
-
-    // Turning page
-    this.turningPageGroup = null;
-    this.turningFrontMesh = null;
-    this.turningBackMesh = null;
-    this.turningGeometry = null;
-    this.isTurning = false;
-    this.turnProgress = 0;
-    this.turnDirection = 'next'; // 'next' or 'prev'
-    this.turnStartTime = 0;
-    this.turnDuration = config.book.turnDuration;
-    this.onTurnComplete = null;
-
-    // Current State
-    this.currentSpreadIndex = 4; // Default spread 4 as in reference design
-    this.totalSpreads = config.spreads.length;
-    this.lightingMode = 'daylight'; // 'daylight' or 'chiaroscuro'
-    this.paperStock = 'cotton-rag';
-
-    // Interactive Camera controls (Smooth constrained rotation)
-    this.isDragging = false;
-    this.previousMousePosition = { x: 0, y: 0 };
-    this.targetRotation = { x: 0.55, y: 0.25 }; // Initial attractive 3/4 angle
-    this.currentRotation = { x: 0.55, y: 0.25 };
-    this.defaultRotation = { x: 0.55, y: 0.25 };
-    this.targetElevation = config.book.initialElevation; // degrees
-    this.zoomLevel = 1.0;
-
-    this.animationFrameId = null;
-
-    this.init();
-  }
-
-  init() {
-    this.setupScene();
-    this.setupCamera();
-    this.setupRenderer();
-    this.setupLighting();
-    this.setupMaterials();
-    this.buildPedestal();
-    this.buildBook();
-    this.setupTurningPage();
-    this.setupEvents();
-
-    // Initial render and display
-    this.updateSpreadContent(this.currentSpreadIndex, false);
-    this.animate();
-
-    if (this.onInitComplete) {
-      this.onInitComplete();
-    }
-  }
-
-  setupScene() {
-    this.scene = new THREE.Scene();
-    // Neutral warm atmospheric fog to integrate smoothly with UI backdrop
-    this.scene.fog = new THREE.FogExp2(0xfbf9f4, 0.022);
-  }
-
-  setupCamera() {
-    const aspect = this.container.clientWidth / this.container.clientHeight || 1.6;
-    this.camera = new THREE.PerspectiveCamera(34, aspect, 0.1, 100);
-    // Initial camera position looking down at book on travertine plinth
-    this.updateCameraTransform();
-  }
-
-  updateCameraTransform() {
-    const dist = 14.2 / this.zoomLevel;
-    const phi = THREE.MathUtils.degToRad(90 - this.targetElevation) + (this.currentRotation.x - this.defaultRotation.x) * 0.45;
-    const theta = (this.currentRotation.y - this.defaultRotation.y) * 0.65;
-
-    const clampedPhi = Math.max(0.35, Math.min(1.45, phi));
-    const clampedTheta = Math.max(-0.65, Math.min(0.65, theta));
-
-    this.camera.position.x = dist * Math.sin(clampedPhi) * Math.sin(clampedTheta);
-    this.camera.position.y = dist * Math.cos(clampedPhi) + 1.2;
-    this.camera.position.z = dist * Math.sin(clampedPhi) * Math.cos(clampedTheta) + 1.8;
-
-    // Look slightly above center of the book spread
-    this.camera.lookAt(new THREE.Vector3(0, 0.35, 0));
-  }
-
-  setupRenderer() {
-    this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true,
-      powerPreference: 'high-performance'
-    });
-    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
-
-    this.container.appendChild(this.renderer.domElement);
-  }
-
-  setupLighting() {
-    // Ambient light
-    this.lights.ambient = new THREE.AmbientLight(0xfcfaf5, 1.1);
-    this.scene.add(this.lights.ambient);
-
-    // Overhead natural skylight (Key light with soft raking shadow)
-    this.lights.key = new THREE.DirectionalLight(0xfff6ea, 1.6);
-    this.lights.key.position.set(4, 12, 6);
-    this.lights.key.castShadow = true;
-    this.lights.key.shadow.mapSize.width = 2048;
-    this.lights.key.shadow.mapSize.height = 2048;
-    this.lights.key.shadow.camera.near = 0.5;
-    this.lights.key.shadow.camera.far = 30;
-    this.lights.key.shadow.camera.left = -7;
-    this.lights.key.shadow.camera.right = 7;
-    this.lights.key.shadow.camera.top = 7;
-    this.lights.key.shadow.camera.bottom = -7;
-    this.lights.key.shadow.bias = -0.0004;
-    this.lights.key.shadow.radius = 2.8;
-    this.scene.add(this.lights.key);
-
-    // Subtle bounce fill light simulating travertine reflection
-    this.lights.fill = new THREE.DirectionalLight(0xf2ede2, 0.65);
-    this.lights.fill.position.set(-6, 3, -4);
-    this.scene.add(this.lights.fill);
-
-    // Raking rim light highlighting page deckle edges
-    this.lights.rim = new THREE.DirectionalLight(0xffffff, 0.4);
-    this.lights.rim.position.set(0, 4, -8);
-    this.scene.add(this.lights.rim);
-  }
-
-  setLightingAtmosphere(mode) {
-    this.lightingMode = mode;
-    if (mode === 'chiaroscuro') {
-      // Dramatic evening gallery low light
-      this.lights.ambient.color.setHex(0x2d2a26);
-      this.lights.ambient.intensity = 0.5;
-
-      this.lights.key.color.setHex(0xffdfa8);
-      this.lights.key.intensity = 2.4;
-      this.lights.key.position.set(7, 6, 4); // Low raking angle
-
-      this.lights.fill.intensity = 0.2;
-      this.lights.rim.intensity = 0.3;
-      this.renderer.toneMappingExposure = 1.15;
-      this.scene.fog.color.setHex(0x1a1918);
-    } else {
-      // Natural overhead museum daylight
-      this.lights.ambient.color.setHex(0xfcfaf5);
-      this.lights.ambient.intensity = 1.1;
-
-      this.lights.key.color.setHex(0xfff6ea);
-      this.lights.key.intensity = 1.6;
-      this.lights.key.position.set(4, 12, 6);
-
-      this.lights.fill.intensity = 0.65;
-      this.lights.rim.intensity = 0.4;
-      this.renderer.toneMappingExposure = 1.05;
-      this.scene.fog.color.setHex(0xfbf9f4);
-    }
-  }
-
-  setupMaterials() {
-    // Travertine Plinth stone texture
-    const travTex = this.loadTexture(config.book.travertine);
-    travTex.wrapS = THREE.RepeatWrapping;
-    travTex.wrapT = THREE.RepeatWrapping;
-    travTex.repeat.set(2, 2);
-
-    this.materials.plinth = new THREE.MeshStandardMaterial({
-      map: travTex,
-      roughness: 0.88,
-      metalness: 0.05,
-      color: 0xede6d8
-    });
-
-    // Hardcover cloth textures
-    const frontTex = this.loadTexture(config.book.frontCover);
-    const backTex = this.loadTexture(config.book.backCover);
-    const spineTex = this.loadTexture(config.book.spine);
-
-    this.materials.coverFront = new THREE.MeshStandardMaterial({
-      map: frontTex,
-      roughness: 0.72,
-      metalness: 0.12,
-      color: 0x1f1d1b
-    });
-
-    this.materials.coverBack = new THREE.MeshStandardMaterial({
-      map: backTex,
-      roughness: 0.72,
-      metalness: 0.12,
-      color: 0x1f1d1b
-    });
-
-    this.materials.spine = new THREE.MeshStandardMaterial({
-      map: spineTex,
-      roughness: 0.78,
-      metalness: 0.08,
-      color: 0x22201e
-    });
-
-    // Page edges / paper block material (ribbed subtle grain)
-    this.materials.pageBlock = new THREE.MeshStandardMaterial({
-      roughness: 0.95,
-      metalness: 0.02,
-      color: 0xede6d8
-    });
-
-    // Resting page materials (initially empty, assigned textures per spread)
-    this.materials.leftResting = new THREE.MeshStandardMaterial({
-      roughness: 0.85,
-      metalness: 0.01,
-      color: 0xfaf7f2,
-      side: THREE.FrontSide
-    });
-
-    this.materials.rightResting = new THREE.MeshStandardMaterial({
-      roughness: 0.85,
-      metalness: 0.01,
-      color: 0xfaf7f2,
-      side: THREE.FrontSide
-    });
-
-    // Turning page materials (front and back)
-    this.materials.turningFront = new THREE.MeshStandardMaterial({
-      roughness: 0.85,
-      metalness: 0.01,
-      color: 0xfaf7f2,
-      side: THREE.FrontSide,
-      polygonOffset: true,
-      polygonOffsetFactor: -1,
-      polygonOffsetUnits: -1
-    });
-
-    this.materials.turningBack = new THREE.MeshStandardMaterial({
-      roughness: 0.85,
-      metalness: 0.01,
-      color: 0xfaf7f2,
-      side: THREE.FrontSide,
-      polygonOffset: true,
-      polygonOffsetFactor: -1,
-      polygonOffsetUnits: -1
-    });
-  }
-
-  loadTexture(url) {
-    const tex = this.textureLoader.load(
-      url,
-      undefined,
-      undefined,
-      (err) => {
-        console.warn(`Texture could not load from ${url}, using aesthetic fallback`, err);
-      }
-    );
-    tex.generateMipmaps = true;
-    tex.minFilter = THREE.LinearMipmapLinearFilter;
-    tex.magFilter = THREE.LinearFilter;
-    tex.colorSpace = THREE.SRGBColorSpace;
-    return tex;
-  }
-
-  buildPedestal() {
-    // Architectural Travertine stone pedestal/plinth as seen in reference image
-    const plinthGeo = new THREE.BoxGeometry(13.8, 1.2, 10.4);
-    this.plinth = new THREE.Mesh(plinthGeo, this.materials.plinth);
-    this.plinth.position.set(0, -0.6, 0);
-    this.plinth.receiveShadow = true;
-    this.plinth.castShadow = true;
-    this.scene.add(this.plinth);
-
-    // Subtle dark contact shadow beneath the book on the plinth
-    const shadowGeo = new THREE.PlaneGeometry(10.8, 7.8);
-    const shadowMat = new THREE.MeshBasicMaterial({
-      color: 0x161514,
-      transparent: true,
-      opacity: 0.28,
-      depthWrite: false
-    });
-    const contactShadow = new THREE.Mesh(shadowGeo, shadowMat);
-    contactShadow.rotation.x = -Math.PI / 2;
-    contactShadow.position.set(0, 0.003, 0);
-    this.scene.add(contactShadow);
-  }
-
-  buildBook() {
-    this.bookGroup = new THREE.Group();
-    this.scene.add(this.bookGroup);
-
-    const pw = config.book.pageWidth;   // 4.8
-    const ph = config.book.pageHeight;  // 6.4
-    const cw = config.book.coverWidth;  // 4.95
-    const ch = config.book.coverHeight; // 6.6
-    const ct = config.book.coverThickness; // 0.08
-    const sw = config.book.spineWidth;  // 0.46
-
-    // 1. Left Hardcover (resting on plinth angled slightly upward)
-    const coverGeo = new THREE.BoxGeometry(cw, ct, ch);
-    this.coverLeft = new THREE.Mesh(coverGeo, this.materials.coverBack);
-    this.coverLeft.position.set(-cw / 2 - sw / 2, ct / 2, 0);
-    this.coverLeft.receiveShadow = true;
-    this.coverLeft.castShadow = true;
-    this.bookGroup.add(this.coverLeft);
-
-    // 2. Right Hardcover
-    this.coverRight = new THREE.Mesh(coverGeo, this.materials.coverFront);
-    this.coverRight.position.set(cw / 2 + sw / 2, ct / 2, 0);
-    this.coverRight.receiveShadow = true;
-    this.coverRight.castShadow = true;
-    this.bookGroup.add(this.coverRight);
-
-    // 3. Curved Book Spine (Cloth binding)
-    const spineGeo = new THREE.CylinderGeometry(sw * 0.52, sw * 0.52, ch, 24, 1, true, -Math.PI * 0.5, Math.PI);
-    this.spineMesh = new THREE.Mesh(spineGeo, this.materials.spine);
-    this.spineMesh.rotation.z = Math.PI / 2;
-    this.spineMesh.rotation.y = Math.PI / 2;
-    this.spineMesh.position.set(0, ct * 0.4, 0);
-    this.bookGroup.add(this.spineMesh);
-
-    // 4. Page Stacks (Visible paper blocks showing thickness)
-    // Left stack:
-    const stackGeoLeft = new THREE.BoxGeometry(pw, 0.16, ph);
-    this.leftPageStack = new THREE.Mesh(stackGeoLeft, this.materials.pageBlock);
-    this.leftPageStack.position.set(-pw / 2 - sw * 0.2, ct + 0.08, 0);
-    this.leftPageStack.receiveShadow = true;
-    this.leftPageStack.castShadow = true;
-    this.bookGroup.add(this.leftPageStack);
-
-    // Right stack:
-    const stackGeoRight = new THREE.BoxGeometry(pw, 0.16, ph);
-    this.rightPageStack = new THREE.Mesh(stackGeoRight, this.materials.pageBlock);
-    this.rightPageStack.position.set(pw / 2 + sw * 0.2, ct + 0.08, 0);
-    this.rightPageStack.receiveShadow = true;
-    this.rightPageStack.castShadow = true;
-    this.bookGroup.add(this.rightPageStack);
-
-    // 5. Resting Pages (Static pages displaying current spread)
-    // Subtle tilt for open book curvature
-    const pageGeo = new THREE.PlaneGeometry(pw, ph, 16, 16);
-
-    // Left resting page
-    this.leftRestingPage = new THREE.Mesh(pageGeo, this.materials.leftResting);
-    this.leftRestingPage.rotation.x = -Math.PI / 2;
-    this.leftRestingPage.position.set(-pw / 2 - sw * 0.2, ct + 0.165, 0);
-    this.leftRestingPage.receiveShadow = true;
-    this.bookGroup.add(this.leftRestingPage);
-
-    // Right resting page
-    this.rightRestingPage = new THREE.Mesh(pageGeo.clone(), this.materials.rightResting);
-    this.rightRestingPage.rotation.x = -Math.PI / 2;
-    this.rightRestingPage.position.set(pw / 2 + sw * 0.2, ct + 0.165, 0);
-    this.rightRestingPage.receiveShadow = true;
-    this.bookGroup.add(this.rightRestingPage);
-  }
-
-  setupTurningPage() {
-    const pw = config.book.pageWidth;
-    const ph = config.book.pageHeight;
-    const segmentsX = 80; // High resolution horizontal segments for silky-smooth travelling bend
-    const segmentsY = 30; // High resolution vertical segments for diagonal corner lift
-
-    this.segmentsX = segmentsX;
-    this.segmentsY = segmentsY;
-
-    this.turningPageGroup = new THREE.Group();
-    this.turningPageGroup.visible = false;
-    this.bookGroup.add(this.turningPageGroup);
-
-    const vertexCount = (segmentsX + 1) * (segmentsY + 1);
-    const positions = new Float32Array(vertexCount * 3);
-    const uvsFront = new Float32Array(vertexCount * 2);
-    const uvsBack = new Float32Array(vertexCount * 2);
-
-    // Initial undeformed positions and exact UV coordinate mapping
-    for (let j = 0; j <= segmentsY; j++) {
-      const v = j / segmentsY; // 0 (bottom) to 1 (top)
-      const z = (0.5 - v) * ph; // Top of page is at -Z (away from camera), bottom at +Z
-
-      for (let i = 0; i <= segmentsX; i++) {
-        const u = i / segmentsX; // 0 (spine hinge) to 1 (free outer edge)
-        const x = u * pw;
-        const y = 0;
-
-        const idx = j * (segmentsX + 1) + i;
-        positions[idx * 3] = x;
-        positions[idx * 3 + 1] = y;
-        positions[idx * 3 + 2] = z;
-
-        // Front face UV: standard upright mapping on right page
-        // u: 0 at spine, 1 at outer edge; v: 0 at bottom, 1 at top
-        uvsFront[idx * 2] = u;
-        uvsFront[idx * 2 + 1] = v;
-
-        // Back face UV: standard upright mapping on left page
-        // When turned over to the left, outer edge (u=1 on sheet) is on the left (u=0 on texture)
-        // and spine (u=0 on sheet) is on the right (u=1 on texture).
-        uvsBack[idx * 2] = 1.0 - u;
-        uvsBack[idx * 2 + 1] = v;
+  function addLayer(sign, reverseWinding) {
+    const start = positions.length / 3;
+    for (let j = 0; j <= segY; j++) {
+      const v = j / segY;
+      const y0 = (v - 0.5) * h;
+      for (let i = 0; i <= segX; i++) {
+        const u = i / segX;
+        const x0 = u * w;
+        positions.push(x0, y0, sign * half);
+        uvs.push(u, v);
+        base.push({ x0, y0, sign });
       }
     }
-
-    // Build triangle index arrays for Front (normal UP) and Back (normal DOWN)
-    const indicesFront = [];
-    const indicesBack = [];
-
-    for (let j = 0; j < segmentsY; j++) {
-      for (let i = 0; i < segmentsX; i++) {
-        const a = j * (segmentsX + 1) + i;
-        const b = j * (segmentsX + 1) + (i + 1);
-        const c = (j + 1) * (segmentsX + 1) + (i + 1);
-        const d = (j + 1) * (segmentsX + 1) + i;
-
-        // Front face: normal points UP (+Y) when flat on the right
-        indicesFront.push(a, b, d);
-        indicesFront.push(b, c, d);
-
-        // Back face: reversed triangle winding so normal points DOWN (-Y) when flat on the right,
-        // and flips to point UP (+Y) when flat on the left!
-        indicesBack.push(a, d, b);
-        indicesBack.push(b, d, c);
-      }
-    }
-
-    // 1. Front Geometry
-    this.turningGeometry = new THREE.BufferGeometry();
-    this.turningGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    this.turningGeometry.setAttribute('uv', new THREE.BufferAttribute(uvsFront, 2));
-    this.turningGeometry.setIndex(indicesFront);
-    this.turningGeometry.computeVertexNormals();
-
-    this.turningFrontMesh = new THREE.Mesh(this.turningGeometry, this.materials.turningFront);
-    this.turningFrontMesh.castShadow = true;
-    this.turningFrontMesh.receiveShadow = true;
-    this.turningPageGroup.add(this.turningFrontMesh);
-
-    // 2. Back Geometry (shares the EXACT same position attribute buffer to ensure perfect physical cohesion)
-    this.backGeometry = new THREE.BufferGeometry();
-    this.backGeometry.setAttribute('position', this.turningGeometry.getAttribute('position'));
-    this.backGeometry.setAttribute('uv', new THREE.BufferAttribute(uvsBack, 2));
-    this.backGeometry.setIndex(indicesBack);
-    this.backGeometry.computeVertexNormals();
-
-    this.turningBackMesh = new THREE.Mesh(this.backGeometry, this.materials.turningBack);
-    this.turningBackMesh.castShadow = true;
-    this.turningBackMesh.receiveShadow = true;
-    this.turningPageGroup.add(this.turningBackMesh);
-
-    // Initial position of turning group at origin (coordinates computed in bookGroup coordinate space)
-    this.turningPageGroup.position.set(0, 0, 0);
-  }
-
-  getStackThickness(spreadIndex, side) {
-    const norm = (Math.max(1, Math.min(this.totalSpreads, spreadIndex)) - 1) / (this.totalSpreads - 1 || 1);
-    if (side === 'left') {
-      return 0.04 + norm * 0.22;
-    } else {
-      return 0.26 - norm * 0.22;
-    }
-  }
-
-  /**
-   * Procedural Physical Travelling Page Bending Deformer
-   * 
-   * Produces authentic paper mechanics:
-   * - Strict inextensibility (arc-length along width is mathematically conserved at pw)
-   * - Deformation begins near free outer edge
-   * - Travelling wave of curvature peaks at mid-flip forming an S-like / cylindrical curl
-   * - Curvature propagates across sheet width from outer edge to spine
-   * - Sheet gradually straightens as it floats down and lands flat
-   * - Bound edge remains locked to the spine binding without clipping
-   * - Symmetrical formulation works identically for forward ('next') and backward ('prev')
-   * 
-   * @param {number} t - eased animation progress (0.0 to 1.0)
-   * @param {string} direction - 'next' (right-to-left) or 'prev' (left-to-right)
-   */
-  applyPageCurlDeformation(t, direction) {
-    const pw = config.book.pageWidth;
-    const ph = config.book.pageHeight;
-    const ct = config.book.coverThickness;
-    const spineGutter = config.book.spineWidth * 0.2;
-    const Nx = this.segmentsX;
-    const Ny = this.segmentsY;
-    const ds = pw / Nx;
-
-    const pos = this.turningGeometry.attributes.position;
-    const isNext = direction === 'next';
-
-    // Departure and arrival spread indices
-    const departingIndex = this.currentSpreadIndex;
-    const incomingIndex = isNext ? departingIndex + 1 : departingIndex - 1;
-
-    // Departure and arrival resting stack heights
-    let xHingeStart, xHingeEnd, yHingeStart, yHingeEnd;
-    if (isNext) {
-      xHingeStart = spineGutter;
-      xHingeEnd = -spineGutter;
-      yHingeStart = ct + this.getStackThickness(departingIndex, 'right') + 0.004;
-      yHingeEnd = ct + this.getStackThickness(incomingIndex, 'left') + 0.004;
-    } else {
-      xHingeStart = -spineGutter;
-      xHingeEnd = spineGutter;
-      yHingeStart = ct + this.getStackThickness(departingIndex, 'left') + 0.004;
-      yHingeEnd = ct + this.getStackThickness(incomingIndex, 'right') + 0.004;
-    }
-
-    // Spine anchor: smoothly transitions from departure gutter to arrival gutter
-    // Lifts gently over the curved spine crown (+0.045 * sin(PI * t)) to prevent spine collision
-    const xHinge = xHingeStart + (xHingeEnd - xHingeStart) * t;
-    const yHinge = yHingeStart + (yHingeEnd - yHingeStart) * t + 0.045 * Math.sin(Math.PI * t);
-
-    // Primary bending envelope: peaks around mid-flip (t = 0.5) and is exactly 0 at t=0 and t=1
-    const env = Math.sin(Math.PI * t);
-
-    // Spine tangent angle: smooth rotation from 0 to PI
-    const spineAngle = Math.PI * t;
-
-    // Travelling wave center: propagates across the width from free outer edge (1.0) towards spine (0.0)
-    const waveCenter = 1.0 - 0.9 * t;
-
-    // Contact threshold preventing paper from dipping below the landing stack surface
-    const landingStackThickness = isNext
-      ? this.getStackThickness(incomingIndex, 'left')
-      : this.getStackThickness(incomingIndex, 'right');
-    const stackTopY = ct + landingStackThickness + 0.003;
-
-    // Row-by-row inextensible arc integration across page height
-    for (let j = 0; j <= Ny; j++) {
-      const v = j / Ny; // 0 (bottom) to 1 (top)
-      const vNorm = v - 0.5; // -0.5 to +0.5
-      const zBase = (0.5 - v) * ph; // Top of book is -Z, bottom is +Z
-
-      let curX = xHinge;
-      let curY = yHinge;
-
-      // Anchor hinge vertex (i = 0, spine edge)
-      const idx0 = j * (Nx + 1);
-      pos.setXYZ(idx0, curX, curY, zBase);
-
-      // Integrate along the sheet width from spine (i = 1) to free outer edge (i = Nx)
-      for (let i = 1; i <= Nx; i++) {
-        const u = (i - 0.5) / Nx;
-
-        // 1. Travelling wave Gaussian kernel
-        const dist = u - waveCenter;
-        const wave = Math.exp(-(dist * dist) / (2 * 0.22 * 0.22));
-
-        // 2. Travelling cylindrical roll: concentrated around the moving wave front
-        const arch = 1.45 * env * wave * Math.sin(Math.PI * u);
-
-        // 3. Free outer edge peel: deformation begins near the free outer edge in early flip
-        const peel = 1.1 * env * Math.pow(u, 1.6) * Math.max(0, 1.0 - 1.2 * t);
-
-        // 4. S-curve inflection (counter-flexure along the sheet width)
-        const sCurve = -0.75 * Math.pow(env, 1.3) * Math.sin(Math.PI * u) * (u - 0.5) * (1.0 - 0.3 * t);
-
-        // 5. Tactile diagonal corner lift (bottom outer corner leads lift)
-        const cornerLift = 0.35 * env * Math.pow(u, 2.0) * (-vNorm + 0.25) * (1.0 - 0.65 * t);
-
-        // 6. Straightening factor as page approaches destination
-        const straighten = Math.pow(1.0 - t, 0.4);
-
-        let theta = spineAngle + (arch + peel + sCurve + cornerLift) * straighten;
-
-        // Symmetrical reflection for backward flip
-        if (!isNext) {
-          theta = Math.PI - theta;
-        }
-
-        curX += ds * Math.cos(theta);
-        curY += ds * Math.sin(theta);
-
-        // Physical contact surface protection
-        if (curY < stackTopY) {
-          curY = stackTopY;
-        }
-
-        // Transverse paper bowing along book length (subtle three-dimensional paper volume)
-        const zTransverse = 0.06 * env * Math.sin(Math.PI * u) * (1.0 - 4.0 * vNorm * vNorm);
-
-        const idx = j * (Nx + 1) + i;
-        pos.setXYZ(idx, curX, curY, zBase + zTransverse);
-      }
-    }
-
-    pos.needsUpdate = true;
-    this.turningGeometry.computeVertexNormals();
-    this.backGeometry.computeVertexNormals();
-  }
-
-  /**
-   * Execute animated page turn
-   */
-  turnPage(direction, onComplete) {
-    if (this.isTurning) return false;
-
-    // Boundary check
-    if (direction === 'next' && this.currentSpreadIndex >= this.totalSpreads) return false;
-    if (direction === 'prev' && this.currentSpreadIndex <= 1) return false;
-
-    this.isTurning = true;
-    this.turnDirection = direction;
-    this.turnStartTime = performance.now();
-    this.onTurnComplete = onComplete;
-
-    const departingSpread = config.spreads[this.currentSpreadIndex - 1];
-    const incomingIndex = direction === 'next' ? this.currentSpreadIndex + 1 : this.currentSpreadIndex - 1;
-    const incomingSpread = config.spreads[incomingIndex - 1];
-
-    // Check prefers-reduced-motion
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    this.turnDuration = prefersReducedMotion ? 250 : config.book.turnDuration;
-
-    const ct = config.book.coverThickness;
-
-    if (direction === 'next') {
-      // Right page turns over to the left
-      // Front material displays departing right slide (facing up on the right)
-      this.materials.turningFront.map = this.getSlideTexture(departingSpread.rightSlideIndex);
-      this.materials.turningFront.needsUpdate = true;
-
-      // Back material displays incoming left slide (will face up on the left)
-      this.materials.turningBack.map = this.getSlideTexture(incomingSpread.leftSlideIndex);
-      this.materials.turningBack.needsUpdate = true;
-
-      // The resting right page immediately reveals the incoming right slide underneath!
-      this.materials.rightResting.map = this.getSlideTexture(incomingSpread.rightSlideIndex);
-      this.materials.rightResting.needsUpdate = true;
-
-      // Update right stack height to reflect the newly exposed spread underneath
-      const newRightThick = this.getStackThickness(incomingIndex, 'right');
-      this.rightPageStack.scale.y = newRightThick / 0.16;
-      this.rightRestingPage.position.y = ct + newRightThick + 0.003;
-    } else {
-      // Previous: Left page turns over to the right
-      // Front material displays incoming right slide (will face up when landing on the right)
-      this.materials.turningFront.map = this.getSlideTexture(incomingSpread.rightSlideIndex);
-      this.materials.turningFront.needsUpdate = true;
-
-      // Back material displays departing left slide (facing up while on the left)
-      this.materials.turningBack.map = this.getSlideTexture(departingSpread.leftSlideIndex);
-      this.materials.turningBack.needsUpdate = true;
-
-      // The resting left page immediately reveals the incoming left slide underneath!
-      this.materials.leftResting.map = this.getSlideTexture(incomingSpread.leftSlideIndex);
-      this.materials.leftResting.needsUpdate = true;
-
-      // Update left stack height to reflect the newly exposed spread underneath
-      const newLeftThick = this.getStackThickness(incomingIndex, 'left');
-      this.leftPageStack.scale.y = newLeftThick / 0.16;
-      this.leftRestingPage.position.y = ct + newLeftThick + 0.003;
-    }
-
-    // Apply initial deformation at t = 0 before showing to avoid any 1-frame jump
-    this.applyPageCurlDeformation(0.0, direction);
-    this.turningPageGroup.visible = true;
-    return true;
-  }
-
-  getSlideTexture(index) {
-    if (this.slideTextures.has(index)) {
-      return this.slideTextures.get(index);
-    }
-    const url = config.slides[index] || config.slides[0];
-    const tex = this.loadTexture(url);
-    this.slideTextures.set(index, tex);
-    return tex;
-  }
-
-  /**
-   * Update resting spread textures without turning animation
-   */
-  updateSpreadContent(spreadIndex, smooth = false) {
-    this.currentSpreadIndex = Math.max(1, Math.min(this.totalSpreads, spreadIndex));
-    const spread = config.spreads[this.currentSpreadIndex - 1];
-
-    const leftTex = this.getSlideTexture(spread.leftSlideIndex);
-    const rightTex = this.getSlideTexture(spread.rightSlideIndex);
-
-    this.materials.leftResting.map = leftTex;
-    this.materials.leftResting.needsUpdate = true;
-
-    this.materials.rightResting.map = rightTex;
-    this.materials.rightResting.needsUpdate = true;
-
-    // Adjust stack thicknesses to reflect progress through the book
-    const leftThick = this.getStackThickness(this.currentSpreadIndex, 'left');
-    const rightThick = this.getStackThickness(this.currentSpreadIndex, 'right');
-
-    this.leftPageStack.scale.y = leftThick / 0.16;
-    this.rightPageStack.scale.y = rightThick / 0.16;
-
-    const ct = config.book.coverThickness;
-    this.leftRestingPage.position.y = ct + leftThick + 0.003;
-    this.rightRestingPage.position.y = ct + rightThick + 0.003;
-  }
-
-  /**
-   * Replace texture from file input preview (URL.createObjectURL)
-   */
-  replaceSlidePreview(slideIndex, objectUrl) {
-    const tex = this.loadTexture(objectUrl);
-    this.slideTextures.set(slideIndex, tex);
-    this.updateSpreadContent(this.currentSpreadIndex, false);
-  }
-
-  replaceCoverPreview(coverType, objectUrl) {
-    const tex = this.loadTexture(objectUrl);
-    if (coverType === 'front') {
-      this.materials.coverFront.map = tex;
-      this.materials.coverFront.needsUpdate = true;
-    } else if (coverType === 'back') {
-      this.materials.coverBack.map = tex;
-      this.materials.coverBack.needsUpdate = true;
-    } else if (coverType === 'spine') {
-      this.materials.spine.map = tex;
-      this.materials.spine.needsUpdate = true;
-    }
-  }
-
-  setupEvents() {
-    const dom = this.renderer.domElement;
-
-    // Pointer events for subtle spatial drag rotation
-    const onPointerDown = (e) => {
-      this.isDragging = true;
-      this.previousMousePosition = {
-        x: e.clientX || (e.touches && e.touches[0].clientX) || 0,
-        y: e.clientY || (e.touches && e.touches[0].clientY) || 0
-      };
-      dom.style.cursor = 'grabbing';
-    };
-
-    const onPointerMove = (e) => {
-      if (!this.isDragging) return;
-      const clientX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
-      const clientY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
-
-      const deltaX = clientX - this.previousMousePosition.x;
-      const deltaY = clientY - this.previousMousePosition.y;
-
-      // Constrained sensitivity: presentation viewer, not wild 3D game
-      this.targetRotation.y += deltaX * 0.0035;
-      this.targetRotation.x += deltaY * 0.0035;
-
-      // Clamp rotations strictly
-      this.targetRotation.y = Math.max(-0.45, Math.min(0.45, this.targetRotation.y));
-      this.targetRotation.x = Math.max(0.15, Math.min(0.85, this.targetRotation.x));
-
-      this.previousMousePosition = { x: clientX, y: clientY };
-    };
-
-    const onPointerUp = () => {
-      this.isDragging = false;
-      dom.style.cursor = 'grab';
-    };
-
-    dom.addEventListener('mousedown', onPointerDown);
-    window.addEventListener('mousemove', onPointerMove);
-    window.addEventListener('mouseup', onPointerUp);
-
-    dom.addEventListener('touchstart', onPointerDown, { passive: true });
-    window.addEventListener('touchmove', onPointerMove, { passive: true });
-    window.addEventListener('touchend', onPointerUp);
-
-    // Responsive resize
-    window.addEventListener('resize', () => this.onWindowResize());
-  }
-
-  onWindowResize() {
-    if (!this.container || !this.renderer || !this.camera) return;
-    const w = this.container.clientWidth;
-    const h = this.container.clientHeight;
-
-    this.camera.aspect = w / h;
-    this.camera.updateProjectionMatrix();
-
-    this.renderer.setSize(w, h);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  }
-
-  setElevation(degrees) {
-    this.targetElevation = degrees;
-  }
-
-  resetIsometricView() {
-    this.targetRotation.x = this.defaultRotation.x;
-    this.targetRotation.y = this.defaultRotation.y;
-    this.targetElevation = config.book.initialElevation;
-  }
-
-  animate() {
-    this.animationFrameId = requestAnimationFrame(() => this.animate());
-
-    // 1. Update page turn physics if in progress
-    if (this.isTurning) {
-      const now = performance.now();
-      const elapsed = now - this.turnStartTime;
-      const t = Math.min(1.0, elapsed / this.turnDuration);
-
-      // Smooth cubic easing:
-      // t * t * (3 - 2 * t)
-      const easeT = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-
-      this.applyPageCurlDeformation(easeT, this.turnDirection);
-
-      if (t >= 1.0) {
-        this.isTurning = false;
-        this.turningPageGroup.visible = false;
-        const newIndex = this.turnDirection === 'next' 
-          ? this.currentSpreadIndex + 1 
-          : this.currentSpreadIndex - 1;
-        
-        this.updateSpreadContent(newIndex, false);
-        if (this.onTurnComplete) {
-          this.onTurnComplete(newIndex);
+    for (let j = 0; j < segY; j++) {
+      for (let i = 0; i < segX; i++) {
+        const a = start + j * (segX + 1) + i;
+        const b = a + 1;
+        const c = a + (segX + 1);
+        const d = c + 1;
+        if (!reverseWinding) {
+          indices.push(a, b, c, b, d, c);
+        } else {
+          indices.push(a, c, b, b, c, d);
         }
       }
     }
+  }
 
-    // 2. Smooth camera damping
-    this.currentRotation.x += (this.targetRotation.x - this.currentRotation.x) * 0.08;
-    this.currentRotation.y += (this.targetRotation.y - this.currentRotation.y) * 0.08;
-    this.updateCameraTransform();
+  addLayer(+1, false); // front layer: normal +Z when flat
+  addLayer(-1, true); // back layer: normal -Z when flat
 
-    // 3. Render frame
-    this.renderer.render(this.scene, this.camera);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+
+  const vertsPerLayer = (segX + 1) * (segY + 1);
+  const trisPerLayer = segX * segY * 6;
+  geometry.addGroup(0, trisPerLayer, 0); // front layer -> material 0
+  geometry.addGroup(trisPerLayer, trisPerLayer, 1); // back layer -> material 1
+  geometry.computeVertexNormals();
+
+  return { geometry, base, vertsPerLayer };
+}
+
+/** Fallback material used while a real texture is loading or missing. */
+function neutralMaterial(texture) {
+  return new THREE.MeshStandardMaterial({
+    map: texture,
+    roughness: 0.85,
+    metalness: 0.02,
+    color: 0xffffff,
+  });
+}
+
+export class Book3D {
+  constructor(scene) {
+    this.scene = scene;
+    this.group = new THREE.Group();
+    this.group.name = "book";
+    scene.add(this.group);
+
+    this._numSlides = 1;
+    this._animation = null; // active flip animation state, or null
+
+    this._pageBackTexture = makePageBackTexture();
+
+    this._buildStaticParts();
+    this._buildFlippingPage();
+  }
+
+  // -------------------------------------------------------------------
+  // Construction
+  // -------------------------------------------------------------------
+
+  _buildStaticParts() {
+    const w = PAGE_WIDTH;
+    const h = PAGE_HEIGHT;
+
+    // Flat static pages (double-sided so they read correctly whether they
+    // sit on the right, at rotation.y = 0, or the left, at rotation.y = PI).
+    // Pivoted at the spine edge (local x=0) rather than centered, so the
+    // same geometry spans [0,w] on the right and, once mirrored by the
+    // 180-degree rotation, [-w,0] on the left.
+    const pageGeo = new THREE.PlaneGeometry(w, h);
+    pageGeo.translate(w / 2, 0, 0);
+
+    this.rightPageMat = neutralMaterial(null);
+    this.rightPageMat.side = THREE.DoubleSide;
+    this.rightPage = new THREE.Mesh(pageGeo, this.rightPageMat);
+    this.rightPage.position.set(0, 0, LAYER_GAP);
+    this.rightPage.rotation.y = 0;
+    this.rightPage.visible = false;
+    this.group.add(this.rightPage);
+
+    this.leftPageMat = neutralMaterial(this._pageBackTexture);
+    this.leftPageMat.side = THREE.DoubleSide;
+    this.leftPage = new THREE.Mesh(pageGeo, this.leftPageMat);
+    this.leftPage.position.set(0, 0, LAYER_GAP);
+    this.leftPage.rotation.y = Math.PI;
+    this.leftPage.visible = false;
+    this.group.add(this.leftPage);
+
+    // Page stack "bulk" blocks (undifferentiated pages) — purely decorative,
+    // so the book continues to read as a physical object with depth. Built
+    // as a unit box pivoted at its spine-facing edge (local x=0), then
+    // scaled per-axis to (width, height, current bulk thickness).
+    const stackGeo = new THREE.BoxGeometry(1, 1, 1);
+    stackGeo.translate(0.5, 0, 0);
+
+    this.rightStackMat = new THREE.MeshStandardMaterial({ color: 0xf1ece0, roughness: 0.95 });
+    this.rightStack = new THREE.Mesh(stackGeo, this.rightStackMat);
+    this.rightStack.scale.set(w, h, 0.0001);
+    this.group.add(this.rightStack);
+
+    this.leftStackMat = new THREE.MeshStandardMaterial({ color: 0xf1ece0, roughness: 0.95 });
+    this.leftStack = new THREE.Mesh(stackGeo, this.leftStackMat);
+    this.leftStack.scale.set(-w, h, 0.0001);
+    this.group.add(this.leftStack);
+
+    // Covers (thicker boxes so they read as rigid board, not paper).
+    // Built as two separate geometries (rather than mirroring one with a
+    // negative scale) so their UVs — and therefore cover artwork — read
+    // correctly instead of backwards.
+    const backCoverGeo = new THREE.BoxGeometry(w, h, COVER_THICKNESS);
+    backCoverGeo.translate(w / 2, 0, 0);
+    const frontCoverGeo = new THREE.BoxGeometry(w, h, COVER_THICKNESS);
+    frontCoverGeo.translate(-w / 2, 0, 0);
+
+    // The front cover doubles as the book's first "page": closed (rotation
+    // PI) it sits on the right showing its art to the viewer; opening it
+    // swings it to rotation 0, its natural build orientation, on the left.
+    // It's a solid box, so a 180-degree spin swaps which of its two opposite
+    // Z faces is the one physically facing the camera (the far face is
+    // occluded by the box's own bulk, regardless of material.side) — so the
+    // art material goes on BOTH those faces, not just the "outer" one.
+    this.frontCoverMat = neutralMaterial(null);
+    this.frontCover = new THREE.Mesh(frontCoverGeo, [
+      new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 0.7 }),
+      new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 0.7 }),
+      new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 0.7 }),
+      new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 0.7 }),
+      this.frontCoverMat,
+      this.frontCoverMat,
+    ]);
+    this.frontCover.rotation.y = Math.PI; // starts closed
+    this.group.add(this.frontCover);
+
+    this.backCoverMat = neutralMaterial(null);
+    this.backCover = new THREE.Mesh(backCoverGeo, [
+      new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 0.7 }),
+      new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 0.7 }),
+      new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 0.7 }),
+      new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 0.7 }),
+      this.backCoverMat,
+      new THREE.MeshStandardMaterial({ color: 0x2a1e14, roughness: 0.8 }),
+    ]);
+    this.group.add(this.backCover);
+
+    // Spine
+    const spineGeo = new THREE.BoxGeometry(SPINE_WIDTH, h + 0.02, 1);
+    this.spineMat = neutralMaterial(null);
+    this.spine = new THREE.Mesh(spineGeo, [
+      new THREE.MeshStandardMaterial({ color: 0x2a1e14, roughness: 0.75 }),
+      new THREE.MeshStandardMaterial({ color: 0x2a1e14, roughness: 0.75 }),
+      new THREE.MeshStandardMaterial({ color: 0x2a1e14, roughness: 0.75 }),
+      new THREE.MeshStandardMaterial({ color: 0x2a1e14, roughness: 0.75 }),
+      this.spineMat,
+      this.spineMat,
+    ]);
+    this.group.add(this.spine);
+
+    // Ground plane that only ever shows the book's cast shadow (a real,
+    // dynamic soft shadow rather than a painted blob).
+    const groundGeo = new THREE.PlaneGeometry(12, 12);
+    const groundMat = new THREE.ShadowMaterial({ opacity: 0.22 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -PAGE_HEIGHT / 2 - 0.02;
+    ground.receiveShadow = true;
+    this.group.add(ground);
+
+    for (const mesh of [this.rightPage, this.leftPage, this.frontCover, this.backCover, this.spine]) {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+    }
+  }
+
+  _buildFlippingPage() {
+    const { geometry, base, vertsPerLayer } = buildFlipGeometry();
+    this._flipBase = base;
+    this._flipVertsPerLayer = vertsPerLayer;
+    this._flipGeometry = geometry;
+
+    this.flipFrontMat = neutralMaterial(null);
+    this.flipFrontMat.side = THREE.FrontSide;
+    this.flipBackMat = neutralMaterial(this._pageBackTexture);
+    this.flipBackMat.side = THREE.FrontSide;
+
+    this.flipMesh = new THREE.Mesh(geometry, [this.flipFrontMat, this.flipBackMat]);
+    this.flipMesh.visible = false;
+    this.flipMesh.frustumCulled = false;
+    this.flipMesh.castShadow = true;
+    this.flipMesh.receiveShadow = true;
+    this.group.add(this.flipMesh);
+  }
+
+  // -------------------------------------------------------------------
+  // Configuration (called once slide count / cover textures are known)
+  // -------------------------------------------------------------------
+
+  setSlideCount(n) {
+    this._numSlides = Math.max(1, n);
+    this._layoutStacks(-1);
+  }
+
+  /**
+   * Assigns `texture` to `material.map`, disposing whatever texture was
+   * there before. Only safe for slots book.js owns exclusively (covers,
+   * spine) — slide-page textures are lifecycle-managed by the
+   * SlideTextureCache in presentation.js and must NOT be disposed here,
+   * since the same texture is reused whenever the user navigates back.
+   */
+  _swapMap(material, texture) {
+    const old = material.map;
+    material.map = texture;
+    material.needsUpdate = true;
+    if (old && old !== texture) old.dispose();
+  }
+
+  /** Sets the right page's slide texture. Ownership stays with the caller's cache. */
+  setRightPageTexture(texture) {
+    this.rightPageMat.map = texture;
+    this.rightPageMat.needsUpdate = true;
+    this.rightPage.visible = true;
+  }
+
+  setFrontCoverTexture(texture) {
+    this._swapMap(this.frontCoverMat, texture);
+  }
+
+  setBackCoverTexture(texture) {
+    this._swapMap(this.backCoverMat, texture);
+  }
+
+  setSpineTexture(texture) {
+    this._swapMap(this.spineMat, texture);
+  }
+
+  // -------------------------------------------------------------------
+  // Layout: positions covers/stacks/pages according to contentIndex.
+  //
+  // contentIndex is which *content* slide (0-based) is currently showing,
+  // or -1 while the closed front cover is showing, or this._numSlides once
+  // the closed back cover is showing (i.e. past the last slide). The front
+  // cover's own open/closed rotation is driven separately, by flipCover();
+  // this only ever snaps its depth and the depth of the back cover.
+  // -------------------------------------------------------------------
+
+  _layoutStacks(contentIndex) {
+    const maxDepth = this._numSlides * (PAGE_THICKNESS + LAYER_GAP) + 0.02;
+    const deepZ = -(maxDepth + COVER_THICKNESS / 2);
+    const nearZ = -(COVER_THICKNESS / 2) - LAYER_GAP;
+
+    const turned = Math.max(0, contentIndex); // content pages already moved to the left
+    const remaining = Math.max(0, this._numSlides - contentIndex - 1); // content pages still to come, right side
+
+    // Each cover rises to meet the spine plane whenever nothing else (no
+    // page, no bulk) is sitting in front of it on its side, so the view
+    // never reads as a recessed, sunken gap.
+    this.frontCover.position.z = contentIndex <= 0 ? nearZ : deepZ;
+    this.backCover.position.z = remaining <= 0 ? nearZ : deepZ;
+    this.spine.position.z = (deepZ + 0) / 2;
+    this.spine.scale.z = Math.abs(deepZ) + COVER_THICKNESS;
+
+    const leftBulk = Math.max(0, turned - 1) * (PAGE_THICKNESS + LAYER_GAP);
+    const rightBulk = Math.max(0, remaining) * (PAGE_THICKNESS + LAYER_GAP);
+
+    this.leftPage.visible = turned > 0;
+    this.rightPage.visible = contentIndex >= 0 && contentIndex < this._numSlides;
+
+    if (leftBulk > 0.00001) {
+      this.leftStack.visible = true;
+      this.leftStack.scale.z = leftBulk;
+      this.leftStack.position.z = -(LAYER_GAP * 2) - leftBulk / 2;
+    } else {
+      this.leftStack.visible = false;
+    }
+
+    if (rightBulk > 0.00001) {
+      this.rightStack.visible = true;
+      this.rightStack.scale.z = rightBulk;
+      this.rightStack.position.z = -(LAYER_GAP * 2) - rightBulk / 2;
+    } else {
+      this.rightStack.visible = false;
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // Animation
+  // -------------------------------------------------------------------
+
+  isAnimating() {
+    return this._animation !== null;
+  }
+
+  /**
+   * Starts a page-turn animation.
+   * @param {"forward"|"backward"} direction
+   * @param {THREE.Texture} frontTexture - texture for the leaf being turned
+   * @param {THREE.Texture|null} upcomingRightTexture - what the right page
+   *   should show once revealed (forward: next slide; backward: same as
+   *   frontTexture, since the leaf becomes the new current slide)
+   * @param {boolean} reducedMotion
+   * @param {() => void} onComplete
+   */
+  flip({ direction, frontTexture, upcomingRightTexture, reducedMotion, onComplete }) {
+    if (this._animation) return;
+
+    this.flipFrontMat.map = frontTexture;
+    this.flipFrontMat.needsUpdate = true;
+
+    if (direction === "forward") {
+      // The flipping leaf currently occupies the same spot as the visible
+      // right page — swap what's underneath to the next slide right away so
+      // it's progressively revealed as the top page lifts and turns.
+      this.rightPageMat.map = upcomingRightTexture;
+      this.rightPageMat.needsUpdate = true;
+      this.rightPage.visible = !!upcomingRightTexture;
+      this.leftPage.visible = true; // neutral back, always the same texture
+    } else {
+      // Backward: the flipping leaf takes over the left page's spot (same
+      // neutral-back appearance at the start), right page stays as-is until
+      // the leaf lands on top of it at the very end.
+      this.leftPage.visible = false;
+    }
+
+    this.flipMesh.visible = true;
+    this.flipMesh.renderOrder = 2;
+
+    this._animation = {
+      direction,
+      start: performance.now(),
+      duration: reducedMotion ? REDUCED_MOTION_DURATION_MS : DEFAULT_DURATION_MS,
+      curl: reducedMotion ? 0.15 : CURL_STRENGTH,
+      lift: reducedMotion ? 0.03 : LIFT_HEIGHT,
+      onComplete: () => {
+        this.flipMesh.visible = false;
+        if (direction === "backward") {
+          this.rightPageMat.map = upcomingRightTexture;
+          this.rightPageMat.needsUpdate = true;
+          this.rightPage.visible = true;
+        }
+        onComplete();
+      },
+    };
+
+    this._updateFlipGeometry(direction === "forward" ? 0 : Math.PI, this._animation.curl, this._animation.lift);
+  }
+
+  /**
+   * Opens or closes the front cover — a rigid hinge rotation (no bend/curl,
+   * unlike flip()), since a cover is a stiff board rather than a sheet of
+   * paper. "forward" opens it (rotation PI -> 0, swinging left); "backward"
+   * closes it again (0 -> PI, swinging back over the right side).
+   */
+  flipCover({ direction, upcomingRightTexture, reducedMotion, onComplete }) {
+    if (this._animation) return;
+
+    if (direction === "forward") {
+      // Reveal slide 0 underneath right away, so it shows progressively as
+      // the cover swings open — same idea as the reveal in flip().
+      this.rightPageMat.map = upcomingRightTexture;
+      this.rightPageMat.needsUpdate = true;
+      this.rightPage.visible = true;
+    }
+    // backward (closing): rightPage stays showing slide 0 throughout, and is
+    // only hidden once the cover has fully swung back over it.
+
+    const fromAngle = direction === "forward" ? Math.PI : 0;
+    const toAngle = direction === "forward" ? 0 : Math.PI;
+
+    this._animation = {
+      kind: "cover",
+      start: performance.now(),
+      duration: reducedMotion ? REDUCED_MOTION_DURATION_MS : DEFAULT_DURATION_MS,
+      fromAngle,
+      toAngle,
+      onComplete: () => {
+        if (direction === "backward") {
+          this.rightPage.visible = false;
+        }
+        onComplete();
+      },
+    };
+
+    this.frontCover.rotation.y = fromAngle;
+  }
+
+  /** Advances the active animation. Call once per frame. */
+  update(nowMs) {
+    if (!this._animation) return;
+
+    const anim = this._animation;
+    const elapsed = nowMs - anim.start;
+    const p = Math.min(1, elapsed / anim.duration);
+    const eased = easeInOutCubic(p);
+
+    if (anim.kind === "cover") {
+      this.frontCover.rotation.y = anim.fromAngle + (anim.toAngle - anim.fromAngle) * eased;
+    } else {
+      const angle = anim.direction === "forward" ? eased * Math.PI : Math.PI - eased * Math.PI;
+      this._updateFlipGeometry(angle, anim.curl, anim.lift);
+    }
+
+    if (p >= 1) {
+      this._animation = null;
+      anim.onComplete(); // triggers Presentation's callback, which calls syncLayout()
+    }
+  }
+
+  /** Rebuilds the flipping page's vertex positions for a given hinge angle. */
+  _updateFlipGeometry(angle, curlStrength, liftHeight) {
+    const posAttr = this._flipGeometry.getAttribute("position");
+    const base = this._flipBase;
+    const w = PAGE_WIDTH;
+    const h = PAGE_HEIGHT;
+    const sinA = Math.sin(angle);
+
+    for (let idx = 0; idx < base.length; idx++) {
+      const { x0, y0, sign } = base[idx];
+      const fold = x0 / w; // 0 at spine, 1 at free edge
+      const theta = angle + curlStrength * fold * sinA;
+
+      const zLocal = sign * (PAGE_THICKNESS / 2);
+      const x = x0 * Math.cos(theta) - zLocal * Math.sin(theta);
+      const z = x0 * Math.sin(theta) + zLocal * Math.cos(theta);
+
+      const edgeFalloff = 1 - Math.pow((2 * y0) / h, 2);
+      const y = y0 + liftHeight * fold * sinA * Math.max(0, edgeFalloff);
+
+      posAttr.setXYZ(idx, x, y, z);
+    }
+
+    posAttr.needsUpdate = true;
+    this._flipGeometry.computeVertexNormals();
+  }
+
+  /** Called by Presentation after contentIndex changes, to reposition stacks. */
+  syncLayout(contentIndex) {
+    this._layoutStacks(contentIndex);
   }
 
   dispose() {
-    if (this.animationFrameId) {
-      cancelAnimationFrame(this.animationFrameId);
-    }
-    if (this.renderer) {
-      this.renderer.dispose();
-    }
+    this._flipGeometry.dispose();
+    this._pageBackTexture.dispose();
   }
 }
