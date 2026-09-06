@@ -13,7 +13,7 @@ export function createCameraRig(camera, book, slideCount) {
     // Screen-up along the page's width makes the portrait page a landscape surface.
     const up = new THREE.Vector3(...(content ? [1, 0, 0] : [0, 1, 0]));
     const matrix = new THREE.Matrix4().lookAt(target.clone().add(direction), target, up);
-    return { bounds, target, rotation: new THREE.Quaternion().setFromRotationMatrix(matrix), focus: kind === "front" ? 0 : 1 };
+    return { bounds, target, rotation: new THREE.Quaternion().setFromRotationMatrix(matrix), focus: kind === "front" ? 0 : 1, padding: content ? 1.02 : 1.045 };
   }
   let kind = "front";
   let index = -1, panel = false;
@@ -37,7 +37,7 @@ export function createCameraRig(camera, book, slideCount) {
       }
     }
     camera.quaternion.copy(value.rotation);
-    camera.position.set(0, 0, distance * 1.045).applyQuaternion(value.rotation).add(value.target);
+    camera.position.set(0, 0, distance * value.padding).applyQuaternion(value.rotation).add(value.target);
     camera.updateMatrixWorld();
     // Extra space on tall/wide screens must not expose the unused half of
     // the spread. Keep the complete focused board and spine in a small matte.
@@ -91,6 +91,7 @@ export function createCameraRig(camera, book, slideCount) {
       rotation: from.rotation.clone().slerp(to.rotation, t),
       bounds: new THREE.Box3(from.bounds.min.clone().lerp(to.bounds.min, t), from.bounds.max.clone().lerp(to.bounds.max, t)),
       focus: THREE.MathUtils.lerp(from.focus, to.focus, t),
+      padding: THREE.MathUtils.lerp(from.padding, to.padding, t),
     };
     apply(current);
     if (progress === 1) finish();

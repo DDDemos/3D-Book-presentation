@@ -92,7 +92,7 @@ work at a domain root or in a GitHub Pages project subdirectory.
 It is separate from the exterior title artwork; the back cover keeps its existing material.
 
 `bookConfig.pageTexture` is the default paper for every page front, page back, and page turn.
-Slide artwork is contained on top with a 6% paper margin. Transparent pixels reveal the paper;
+Slide artwork is contained on top with a 2% paper margin. Transparent pixels reveal the paper;
 opaque image backgrounds remain part of the artwork. The dev editor uses the same composition
 for uploaded slides, and reading view displays the same paper behind the original slide image.
 The paper image is loaded once per 3D runtime. If it is unavailable, plain cream paper is used.
@@ -165,6 +165,10 @@ Resource editing is file/configuration based. The temporary image editor does no
 
 ## Navigation
 
+The bottom toolbar places Previous, the counter, Next, Index, Reading view, resource visibility,
+and fullscreen controls on one desktop row. Narrow screens use compact icons and wrap as needed,
+with 44px touch targets. The reclaimed footer space goes to the book canvas.
+
 - **Previous / Next:** one normal page turn (about 900ms).
 - **Left / Right arrow, Space:** previous/next when focus is outside interactive controls.
   Space retains its normal action on a focused button.
@@ -179,6 +183,14 @@ Resource editing is file/configuration based. The temporary image editor does no
   delays. Choosing the current page simply closes the popup.
 - Navigation and image mutation controls are disabled during loading/transitions. Further
   navigation requests are ignored until the current operation finishes.
+- **Hide/Show slide resources:** the panel icon appears on slides with text or links. Hiding
+  the panel gives its space to the slide and removes the extra camera angle. It stays hidden
+  across slides and view switches until you restore it; reloading resets it to visible.
+  Desktop 3D reframing takes 240ms without a page flip. Reading view, narrow screens, and
+  reduced-motion mode apply the change immediately. Full text and copy controls return with it.
+- **Fullscreen:** the corner icon enters or exits native fullscreen for the whole presentation,
+  including controls and popups. You can also use the browser's normal exit action. Unsupported
+  browsers omit the button; a denied request leaves the presentation usable with an inline message.
 
 Covers remain the first and last positions. Empty and single-slide presentations are supported.
 The front cover is centered almost straight on, slightly elevated to reveal its thickness.
@@ -186,6 +198,7 @@ The presentation heading appears only here; it fades away and releases its space
 book opens. The camera rotates smoothly into a nearly straight-on landscape view of the
 right page, with a little cover and paper edge visible. It stays steady between slides and
 returns to an upright portrait view at the back cover, without restoring the heading.
+Content framing uses 2% fit padding; the portrait covers keep their original 4.5% padding.
 A transparent frame around the focused board keeps the unused half of the spread
 out of view even on tall phone screens or wide cover views. The whole page uses a warm
 taupe background on both covers and fades to deep brown on content slides, in both 3D
@@ -236,6 +249,8 @@ not implemented.
 - `index.html`, `styles.css`: shared page shell, controls, popup, reading view, and styling.
 - `js/presentation.js`: code configuration, view/page state, navigation lock, upload ownership.
 - `js/ui.js`: DOM-only controls, accessible index, reading view, and dev-only editor.
+- `js/display-config.js`: shared artwork margin and resource-transition duration.
+- `js/fullscreen.js`: native fullscreen controls, browser state synchronization, and failure feedback.
 - `js/resource-panel.js`, `js/resources.js`: slide-linked resource panel, clipboard actions,
   website validation, and cached plain-text loading.
 - `js/main.js`, `js/startup.js`: lightweight entry point, startup deadline, retry and cleanup.

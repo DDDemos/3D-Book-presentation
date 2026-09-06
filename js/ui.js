@@ -1,5 +1,7 @@
 // DOM-only UI: usable even when Three.js or WebGL cannot load.
-import { initResourcePanel } from "./resource-panel.js?v=6";
+import { initResourcePanel } from "./resource-panel.js?v=7";
+import { initFullscreen } from "./fullscreen.js?v=7";
+import { SLIDE_ARTWORK_MARGIN, RESOURCE_TRANSITION_MS } from "./display-config.js?v=7";
 
 export function initUI({ presentation, devMode, retry, resourceOptions = {} }) {
   const resourcePanel = initResourcePanel({ ...resourceOptions, presentation });
@@ -7,6 +9,9 @@ export function initUI({ presentation, devMode, retry, resourceOptions = {} }) {
   const prev = $("prev-btn"), next = $("next-btn"), indexButton = $("index-toggle-btn");
   const popup = $("index-popup"), grid = $("index-grid"), tooltip = $("index-tooltip");
   const viewButton = $("view-toggle-btn"), reader = $("reading-view"), canvas = $("canvas-container");
+  const resourcesButton = $("resources-toggle-btn"), fullscreenButton = $("fullscreen-btn");
+  document.documentElement.style.setProperty("--slide-artwork-margin", `${SLIDE_ARTWORK_MARGIN * 100}%`);
+  document.documentElement.style.setProperty("--resource-transition-duration", `${RESOURCE_TRANSITION_MS}ms`);
   document.body.append(tooltip);
   let startupLoading = true;
   let editor = null;
@@ -16,6 +21,22 @@ export function initUI({ presentation, devMode, retry, resourceOptions = {} }) {
   let readingIndex;
   let tooltipButton;
   let restoreAfterNavigation;
+  const fullscreen = initFullscreen({ button: fullscreenButton, status: $("fullscreen-status"), onChange: resizeUI });
+
+  function positionIndex() {
+    if (popup.hidden) return;
+    const viewport = window.visualViewport;
+    const left = viewport?.offsetLeft ?? 0, top = viewport?.offsetTop ?? 0;
+    const width = viewport?.width ?? innerWidth, height = viewport?.height ?? innerHeight;
+    const anchor = indexButton.getBoundingClientRect();
+    const bottom = Math.min(top + height - 8, anchor.top - 8);
+    popup.style.width = `${Math.min(368, width - 16)}px`;
+    grid.style.maxHeight = `${Math.max(44, Math.min(320, bottom - top - 96))}px`;
+    const box = popup.getBoundingClientRect();
+    popup.style.left = `${Math.max(left + 8, Math.min(left + width - box.width - 8, anchor.left + anchor.width / 2 - box.width / 2))}px`;
+    popup.style.top = `${Math.max(top + 8, bottom - box.height)}px`;
+  }
+  function resizeUI() { hideTooltip(); positionIndex(); }
 
   function closeIndex(restore = true) {
     if (popup.hidden) return;
@@ -28,6 +49,7 @@ export function initUI({ presentation, devMode, retry, resourceOptions = {} }) {
     if (presentation.busy) return;
     closeEditor(false);
     popup.hidden = false;
+    positionIndex();
     indexButton.setAttribute("aria-expanded", "true");
     const current = grid.children[presentation.currentIndex];
     current.focus({ preventScroll: true });
@@ -102,10 +124,14 @@ export function initUI({ presentation, devMode, retry, resourceOptions = {} }) {
   document.addEventListener("focusin", event => {
     if (!popup.hidden && !popup.contains(event.target) && event.target !== indexButton) closeIndex(false);
   });
-  window.addEventListener("resize", hideTooltip);
+  window.addEventListener("resize", resizeUI);
+  window.visualViewport?.addEventListener("resize", resizeUI);
+  window.visualViewport?.addEventListener("scroll", resizeUI);
   prev.addEventListener("click", () => void presentation.prev());
   next.addEventListener("click", () => void presentation.next());
   viewButton.addEventListener("click", () => { closeIndex(false); void presentation.setReading(!presentation.reading); });
+  resourcesButton.addEventListener("click", () => { closeIndex(false); void presentation.setResourcesVisible(!presentation.resourcesVisible); });
+  fullscreenButton.addEventListener("click", () => closeIndex(false));
   $("retry-btn").addEventListener("click", retry);
 
   function closeEditor(restore = true) {
@@ -162,14 +188,22 @@ export function initUI({ presentation, devMode, retry, resourceOptions = {} }) {
     const hideTitle = state.displayIndex !== 0;
     title.classList.toggle("title-hidden", hideTitle);
     title.setAttribute("aria-hidden", String(hideTitle));
-    if (state.busy && [indexButton, prev, next, viewButton].includes(document.activeElement)) restoreAfterNavigation = document.activeElement;
+    if (state.busy && [indexButton, prev, next, viewButton, resourcesButton, fullscreenButton].includes(document.activeElement)) restoreAfterNavigation = document.activeElement;
+    if (state.busy && $("resource-panel").contains(document.activeElement)) restoreAfterNavigation = resourcesButton;
     $("slide-counter").textContent = state.entry.number ? `Slide ${state.entry.number} / ${presentation.slides.length}` : state.entry.title;
     prev.disabled = !state.canPrev;
     next.disabled = !state.canNext;
     indexButton.disabled = state.busy;
     viewButton.disabled = state.busy || !state.has3D;
-    viewButton.textContent = state.reading ? "3D view" : "Reading view";
+    $("view-toggle-label").textContent = state.reading ? "3D view" : "Reading view";
     viewButton.setAttribute("aria-label", state.reading ? "Switch to 3D view" : "Switch to reading view");
+    viewButton.title = viewButton.getAttribute("aria-label");
+    resourcesButton.hidden = !presentation.entries[state.navigationTarget ?? state.index]?.resources?.length;
+    resourcesButton.disabled = state.busy;
+    resourcesButton.setAttribute("aria-expanded", String(state.resourcesVisible));
+    resourcesButton.title = state.resourcesVisible ? "Hide slide resources" : "Show slide resources";
+    resourcesButton.setAttribute("aria-label", resourcesButton.title);
+    fullscreen.setBusy(state.busy);
     reader.hidden = !state.reading;
     canvas.hidden = state.reading;
     $("stage").setAttribute("aria-busy", String(state.busy));
@@ -189,8 +223,9 @@ export function initUI({ presentation, devMode, retry, resourceOptions = {} }) {
     $("retry-btn").disabled = state.busy || startupLoading || uploadCount > 0;
     updateReading(state);
     if (!state.busy && restoreAfterNavigation) {
-      if (document.activeElement === document.body || document.activeElement === restoreAfterNavigation) {
-        (restoreAfterNavigation.disabled ? indexButton : restoreAfterNavigation).focus({ preventScroll: true });
+      if (document.activeElement === document.body || document.activeElement === restoreAfterNavigation
+        || (!state.resourcesVisible && $("resource-panel").contains(document.activeElement))) {
+        (restoreAfterNavigation.disabled || restoreAfterNavigation.hidden ? indexButton : restoreAfterNavigation).focus({ preventScroll: true });
       }
       restoreAfterNavigation = null;
     }
@@ -206,7 +241,7 @@ export function initUI({ presentation, devMode, retry, resourceOptions = {} }) {
     editButton.setAttribute("aria-controls", "editor-panel");
     editButton.setAttribute("aria-expanded", "false");
     editButton.setAttribute("aria-haspopup", "dialog");
-    document.querySelector(".app-footer").append(editButton);
+    $("presentation-toolbar").append(editButton);
     editor = document.createElement("aside");
     editor.id = "editor-panel";
     editor.className = "editor-panel";
@@ -263,10 +298,15 @@ export function initUI({ presentation, devMode, retry, resourceOptions = {} }) {
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     });
   }
-  presentation.onChange(render);
+  const unsubscribe = presentation.onChange(render);
   render(presentation.state());
   return {
-    dispose() { resourcePanel.dispose(); },
+    dispose() {
+      unsubscribe(); resourcePanel.dispose(); fullscreen.dispose();
+      window.removeEventListener("resize", resizeUI);
+      window.visualViewport?.removeEventListener("resize", resizeUI);
+      window.visualViewport?.removeEventListener("scroll", resizeUI);
+    },
     setStartupStatus(status) {
       startupLoading = status === "loading";
       $("startup-notice").hidden = status === "ready";

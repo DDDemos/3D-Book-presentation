@@ -52,6 +52,11 @@ also exports `slides`, `bookConfig`, `presentationTitle`, and `DEV_MODE`.
 - `setReading(reading)` switches views. Returning to 3D loads the current texture and
   restores book/camera state directly. It resolves to a boolean and requires a runtime
   when switching to 3D.
+- `setResourcesVisible(visible)` changes the session's panel preference under the navigation
+  lock. Desktop 3D waits for the 240ms camera and CSS layout transitions; reading, narrow,
+  and reduced-motion layouts update immediately. Failures restore the previous preference.
+  `state()` includes `resourcesVisible`, `resourcesTransitioning`, and
+  `resourcesTransitionAnimated`. Reloading starts with resources visible.
 - `attachRuntime(runtime, texture)` installs a prepared runtime at the current position;
   used by startup after its final current-page check.
 - `replaceImage(key, url, prepare)` awaits image preparation and commits a temporary blob
@@ -134,7 +139,8 @@ Sources: [js/ui.js](../js/ui.js), [js/resource-panel.js](../js/resource-panel.js
 `initUI({ presentation, devMode, retry, resourceOptions })` wires the existing HTML shell,
 Index/focus handling, navigation shortcuts, reading view, and code-controlled editor.
 It returns `setStartupStatus(status)` for `"loading"`, `"ready"`, or `"failed"`, and
-`dispose()` to dispose its resource panel. The page owns the other UI listeners for its lifetime.
+`dispose()` to clean up state subscriptions, viewport listeners, the resource panel, and
+fullscreen controls. The page owns the remaining UI listeners for its lifetime.
 
 Its internal `render(state)` updates controls, title visibility, and the body's `data-page-theme`.
 The body supplies the warm cover/deep brown slide backdrop through CSS; light panels keep
@@ -174,6 +180,17 @@ scissor. Background fades therefore do not require continuous WebGL rendering.
 Transitions default to 900ms and resolve on completion. Reduced motion restores immediately.
 `getFrame()` returns normalized left/right/bottom/top bounds for the scene's scissor.
 Resizing refits the pose or changes its destination without restarting the animation clock.
+Content fit padding is 1.02; cover padding is 1.045, interpolated during boundary transitions.
+The runtime's `transitionCamera` accepts `waitForLayout: true` to await active stage CSS
+transitions as well as camera movement when toggling resources.
+
+`initFullscreen({ button, status, doc, onChange })` in [fullscreen.js](../js/fullscreen.js)
+requests native fullscreen on the document root and listens for `fullscreenchange`, including
+browser-driven exits. It returns `setBusy(value)` and `dispose()`. Unsupported APIs hide the
+button; request failures show inline feedback. The optional document supports isolated tests.
+
+[display-config.js](../js/display-config.js) exports `SLIDE_ARTWORK_MARGIN = 0.02` for texture
+composition and reading-view CSS, and `RESOURCE_TRANSITION_MS = 240` for layout/camera timing.
 
 ## Startup, rendering, and texture helpers
 

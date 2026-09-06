@@ -11,6 +11,7 @@ const { SlideTextureCache } = await module('texture-cache');
 const { createStartup } = await module('startup');
 const { createRenderLoop } = await module('render-loop');
 const { ResourceTextStore, websiteURL } = await module('resources');
+const { initFullscreen } = await module('fullscreen');
 const checks = [];
 const test = (name, run) => checks.push({ name, run });
 const texture = label => ({ label, disposed: 0, dispose() { this.disposed++; } });
@@ -61,6 +62,63 @@ test('resources follow their slide objects through insertion and reordering', ()
   assert.equal(p.entries[1].resources[0].url, b.resources[0].url);
   assert.deepEqual(p.entries[2].resources, []);
   assert.equal(p.entries[3].resources[0].src, a.resources[0].src);
+});
+test('resource visibility locks through reframing, persists across views, and never flips a page', async () => {
+  const f = fixture(3);
+  f.p.entries[1].resources = [{type: 'text', src: './prompt.txt'}];
+  await f.drain(f.p.goTo(1));
+  f.p.desktopLayout = () => true;
+  const turns = f.turns.length, gate = deferred(), seen = [];
+  f.p.onChange(s => seen.push(s));
+  f.runtime.transitionCamera = (index, options) => {
+    assert.equal(index, 0); assert.equal(options.duration, 240); assert.equal(options.waitForLayout, true);
+    return gate.promise;
+  };
+  const hidden = f.p.setResourcesVisible(false);
+  assert.equal(seen[0].busy, true); assert.equal(f.p.resourcesVisible, false);
+  assert.equal(f.p.busy, true); assert.equal(f.p.state().resourcesTransitionAnimated, true);
+  assert.equal(await f.p.next(), false); assert.equal(await f.p.setResourcesVisible(true), false);
+  gate.resolve(); assert.equal(await hidden, true); assert.equal(f.turns.length, turns);
+  assert.equal(f.p.busy, false); assert.equal(f.p.state().resourcesTransitioning, false);
+  await f.p.setReading(true); await f.p.goTo(2); await f.p.setReading(false);
+  assert.equal(f.p.resourcesVisible, false);
+  f.p.reducedMotion = () => true;
+  await f.p.goTo(1); await f.p.setResourcesVisible(true);
+  assert.equal(f.p.resourcesVisible, true); assert.equal(f.turns.length, turns);
+  assert.equal(new Presentation().resourcesVisible, true);
+});
+test('resource toggles recover after camera failure and are immediate in narrow or reading views', async () => {
+  const f = fixture(1); f.p.entries[1].resources = [{type: 'url', url: 'https://example.com'}];
+  await f.drain(f.p.goTo(1)); f.p.desktopLayout = () => true;
+  f.runtime.transitionCamera = () => Promise.reject(new Error('expected reframe failure'));
+  const log = console.error; console.error = () => {};
+  try { assert.equal(await f.p.setResourcesVisible(false), false); } finally { console.error = log; }
+  assert.equal(f.p.resourcesVisible, true); assert.equal(f.p.busy, false);
+  f.p.desktopLayout = () => false;
+  assert.equal(await f.p.setResourcesVisible(false), true);
+  await f.p.setReading(true); f.p.desktopLayout = () => true;
+  assert.equal(await f.p.setResourcesVisible(true), true);
+  assert.equal(await f.p.setResourcesVisible('false'), false);
+});
+test('fullscreen uses the document root, follows native exits, and handles failure or unsupported APIs', async () => {
+  const listeners = new Map(), events = new Map(), attributes = new Map();
+  const button = {hidden: false, addEventListener(k, fn) { listeners.set(k, fn); }, removeEventListener(k) { listeners.delete(k); }, setAttribute(k,v) { attributes.set(k,v); }};
+  const status = {hidden: true}; let fail = false, requested = 0, changes = 0;
+  const doc = {fullscreenEnabled: true, fullscreenElement: null,
+    documentElement: {async requestFullscreen() { requested++; if (fail) throw Error('denied'); doc.fullscreenElement = this; events.get('fullscreenchange')(); }},
+    async exitFullscreen() { doc.fullscreenElement = null; events.get('fullscreenchange')(); },
+    addEventListener(k,fn) { events.set(k,fn); }, removeEventListener(k) { events.delete(k); }};
+  const ui = initFullscreen({button,status,doc,onChange: () => changes++});
+  await listeners.get('click')(); assert.equal(requested, 1); assert.equal(doc.fullscreenElement, doc.documentElement);
+  assert.equal(attributes.get('aria-label'), 'Exit fullscreen');
+  doc.fullscreenElement = null; events.get('fullscreenchange')();
+  assert.equal(attributes.get('aria-label'), 'Enter fullscreen'); assert.equal(changes, 2);
+  ui.setBusy(true); await listeners.get('click')(); assert.equal(requested, 1);
+  ui.setBusy(false); fail = true; await listeners.get('click')();
+  assert.equal(status.hidden, false); assert.ok(status.textContent.includes('could not')); assert.equal(button.disabled, false);
+  ui.dispose(); assert.equal(events.size, 0); assert.equal(listeners.size, 0);
+  doc.fullscreenEnabled = false;
+  const unsupported = initFullscreen({button,status,doc}); assert.equal(button.hidden, true); unsupported.dispose();
 });
 test('index jumps expose only one final resource destination until navigation settles', async () => {
   const f = fixture(3), seen = []; f.p.onChange(state => seen.push(state));

@@ -1,6 +1,6 @@
 // Browser-only integration checks; no test packages or production hooks required.
 const root = new URL('../', location.href);
-const shell = await (await fetch(new URL('index.html', root))).text();
+const shell = await (await fetch(new URL('index.html', root), {cache: 'no-store'})).text();
 const results = document.getElementById('checks');
 let frame;
 let passed = 0;
@@ -18,10 +18,10 @@ async function fixture({ dev = false, count = 3, fail = false, timeout = false, 
   frame = document.createElement('iframe'); frame.title = 'Presentation test fixture';
   frame.style.width = `${width}px`; frame.style.height = `${height}px`;
   const script = `
-    import { Presentation, slides } from './js/presentation.js?v=6';
+    import { Presentation, slides } from './js/presentation.js?v=7';
     import { sampleSlides } from './tests/sample-slides.js';
-    import { initUI } from './js/ui.js?v=6';
-    import { createStartup } from './js/startup.js?v=6';
+    import { initUI } from './js/ui.js?v=7';
+    import { createStartup } from './js/startup.js?v=7';
     window.addEventListener('error', event => window.fixtureError = event.message);
     window.addEventListener('unhandledrejection', event => window.fixtureError = String(event.reason));
     const p = new Presentation(${configuredDeck} ? slides : Array.from({length: ${count}}, (_, i) => ({...sampleSlides[i % sampleSlides.length], resources: ${withResources} ? sampleSlides[i % sampleSlides.length].resources : [], title: sampleSlides[i % sampleSlides.length].title + (${count} > 3 ? ' ' + (i + 1) : '')})));
@@ -29,7 +29,7 @@ async function fixture({ dev = false, count = 3, fail = false, timeout = false, 
     let startup;
     window.copied = []; window.denyClipboard = false;
     const ui = initUI({presentation: p, devMode: ${dev}, retry: () => startup.start(), resourceOptions: {
-      writeClipboard: async text => { if (window.denyClipboard) throw new Error('Clipboard denied'); window.copied.push(text); }
+      writeClipboard: async text => { if (window.clipboardGate) await window.clipboardGate; if (window.denyClipboard) throw new Error('Clipboard denied'); window.copied.push(text); }
     }});
     let failed = ${fail};
     startup = createStartup({presentation: p, timeout: ${timeout ? 30 : 15000}, onStatus: ui.setStartupStatus,
@@ -37,7 +37,7 @@ async function fixture({ dev = false, count = 3, fail = false, timeout = false, 
         ${timeout ? 'return new Promise(() => {});' : ''}
         if (failed) throw new Error('Simulated CDN failure');
         try {
-          const {createScene} = await import('${root.href}js/scene.js?v=6');
+          const {createScene} = await import('${root.href}js/scene.js?v=7');
           return () => { try { return createScene(p); } catch (error) { window.fixtureError = error.message + " " + error.stack; throw error; } };
         } catch (error) { window.fixtureError = error.message + " " + error.stack; throw error; }
       }});
@@ -45,7 +45,7 @@ async function fixture({ dev = false, count = 3, fail = false, timeout = false, 
     startup.start();
   `;
   frame.srcdoc = shell.replace('<head>', `<head><base href="${root.href}">`)
-    .replace(/<script type="module" src="\.\/js\/main\.js\?v=6"><\/script>/, `<script type="module">${script}<\/script>`);
+    .replace(/<script type="module" src="\.\/js\/main\.js\?v=7"><\/script>/, `<script type="module">${script}<\/script>`);
   document.getElementById('surface').append(frame);
   await wait(() => frame.contentWindow.fixture, 'Fixture did not initialize');
   const f = frame.contentWindow.fixture;
@@ -80,7 +80,7 @@ function assertFraming(f, kind) {
 }
 function assertLandscapeTexture(texture) {
   const image = texture.image, ctx = image.getContext('2d');
-  const scale = Math.min(image.height * .88 / 1600, image.width * .88 / 900);
+  const scale = Math.min(image.height * .96 / 1600, image.width * .96 / 900);
   const sample = (x, y) => [...ctx.getImageData(Math.round(image.width / 2 - (y - 450) * scale),
     Math.round(image.height / 2 + (x - 800) * scale), 1, 1).data].join(',');
   for (const [x, y, color] of [[40,40,'255,0,0,255'],[1560,40,'0,255,0,255'],[40,860,'0,0,255,255'],[1560,860,'255,255,0,255']]) {
@@ -93,6 +93,15 @@ try {
     assertFraming(f, 'front');
     assert(f.$('presentation-title').textContent === 'Intro to Vibe Coding', 'Wrong introduction title');
     assert(f.$('presentation-title').getAttribute('aria-hidden') === 'false', 'Cover heading is hidden');
+  });
+  await check('Desktop controls share one compact row and leave more height for the canvas', () => {
+    const toolbar = f.$('presentation-toolbar').getBoundingClientRect();
+    assert(!f.doc.querySelector('.app-footer'), 'Separate footer still consumes canvas height');
+    assert(toolbar.height <= 65, 'Desktop toolbar is taller than one control row');
+    const ids = ['prev-btn', 'slide-counter', 'next-btn', 'index-toggle-btn', 'view-toggle-btn'];
+    const centers = ids.map(id => { const box = f.$(id).getBoundingClientRect(); return box.top + box.height / 2; });
+    assert(Math.max(...centers) - Math.min(...centers) < 2, 'Controls are not on the same row');
+    for (const id of ids.filter(id => id !== 'slide-counter')) assert(f.$(id).getBoundingClientRect().height >= 44, 'Touch target is too small');
   });
   await check('The whole page fades to brown on slides and restores the cover shade at either end', async () => {
     const background = () => f.win.getComputedStyle(f.doc.body).backgroundColor;
@@ -362,6 +371,26 @@ try {
       assert(control.querySelector('svg') && !control.textContent.trim() && control.getAttribute('aria-label') && control.title, 'Icon action lacks an accessible label or tooltip');
     }
   });
+  await check('Resource toggles enlarge the page without flipping and persist across slides and views', async () => {
+    const surface = f.$('view-surface'), before = surface.getBoundingClientRect().width;
+    const rotation = f.p.runtime.camera.quaternion.clone();
+    f.$('resources-toggle-btn').click();
+    assert(f.p.busy && f.$('next-btn').disabled, 'Panel reframe did not hold the navigation lock');
+    assert(!f.p.runtime.book.isAnimating(), 'Hiding resources turned a page');
+    await wait(() => !f.p.busy);
+    assert(f.$('resource-slot').hidden && f.$('resource-panel').inert, 'Hidden panel remains visible or focusable');
+    assert(surface.getBoundingClientRect().width > before + 200, 'Panel hiding did not recover width');
+    assert(f.p.runtime.camera.quaternion.angleTo(rotation) > .08, 'Panel camera did not return to the normal angle');
+    assert(f.$('resources-toggle-btn').getAttribute('aria-expanded') === 'false', 'Toggle state is incorrect');
+    await f.p.goTo(2); assert(f.$('resources-toggle-btn').hidden, 'Resource toggle is visible on a resource-free slide');
+    await f.p.goTo(1); assert(f.$('resource-slot').hidden, 'Navigation reopened resources');
+    await f.p.setReading(true); assert(f.$('resource-slot').hidden, 'Reading view reopened resources');
+    await f.p.setResourcesVisible(true);
+    assert(!f.$('resource-slot').hidden && f.$('resource-text').textContent === longText, 'Restored panel lost its text');
+    const paper = f.$('reading-image-container').getBoundingClientRect(), image = f.doc.querySelector('.reading-image').getBoundingClientRect();
+    assert(Math.abs(image.width / paper.width - .96) < .005, 'Reading artwork does not use the shared 2% margin');
+    await f.p.setReading(false); assertFraming(f, 'content');
+  });
   await check('Long preview fades; Copy preserves all 1000 words and exact whitespace', async () => {
     assert(f.$('resource-preview').classList.contains('is-overflowing'), 'Long preview has no fade');
     assert(!f.$('resource-expand').hidden && !f.$('resource-open').hidden, 'Combined prompt and URL actions are incorrect');
@@ -448,12 +477,38 @@ try {
     assert(f.p.currentIndex === 1 && f.$('stage').classList.contains('has-resources'), 'Current panel was lost after failure');
     assert(camera.quaternion.angleTo(before) < .00001, 'Failed jump restored the wrong resource camera angle');
   });
+  await check('Hidden resources ignore late clipboard failures and retain late-loaded text without stealing focus', async () => {
+    let finishCopy;
+    f.win.clipboardGate = new f.win.Promise(resolve => finishCopy = resolve);
+    f.win.denyClipboard = true; f.$('resource-copy').click();
+    await f.p.setResourcesVisible(false); f.$('resources-toggle-btn').focus(); finishCopy();
+    await new Promise(resolve => setTimeout(resolve, 30));
+    assert(f.$('resource-manual').hidden && f.doc.activeElement === f.$('resources-toggle-btn'), 'Late copy failure focused a hidden panel');
+    f.win.clipboardGate = null; f.win.denyClipboard = false;
+    const originalFetch = f.win.fetch; let finishLoad;
+    f.win.fetch = (url, options) => String(url).includes('hidden-prompt-test.txt')
+      ? new Promise(resolve => finishLoad = resolve) : originalFetch.call(f.win, url, options);
+    try {
+      await f.p.goTo(2);
+      f.p.entries[1].resources = [{type: 'text', label: 'Hidden load', src: './hidden-prompt-test.txt'}];
+      await f.p.goTo(1); await wait(() => finishLoad);
+      finishLoad(new f.win.Response('Loaded while hidden'));
+      await wait(() => f.$('resource-text').textContent === 'Loaded while hidden');
+      assert(f.$('resource-slot').hidden && f.$('resource-copy').disabled, 'Late text revealed hidden resources');
+      await f.p.setResourcesVisible(true);
+      assert(f.$('resource-text').textContent === 'Loaded while hidden' && !f.$('resource-copy').disabled, 'Loaded text was lost on restore');
+    } finally { f.win.fetch = originalFetch; }
+    await showResources([0, 1]);
+  });
   await check('Resources stack below the slide on phones and remain available in reading view', async () => {
     frame.style.width = '320px'; frame.style.height = '640px';
     await new Promise(resolve => setTimeout(resolve, 150));
     const surface = f.$('view-surface').getBoundingClientRect(), panel = f.$('resource-panel').getBoundingClientRect();
     assert(panel.top >= surface.bottom && f.doc.documentElement.scrollWidth <= 320, 'Phone panel overlaps or overflows the slide');
     assertFraming(f, 'content');
+    await f.p.setResourcesVisible(false);
+    assert(f.$('resource-slot').hidden && !f.p.runtime.cameraRig.isAnimating(), 'Narrow panel toggle animated or stayed visible');
+    await f.p.setResourcesVisible(true);
     await f.p.setReading(true);
     assert(!f.$('resource-slot').hidden && f.$('resource-text').textContent === longText, 'Reading view lost resources');
     f.$('resource-copy').scrollIntoView({block: 'nearest'});

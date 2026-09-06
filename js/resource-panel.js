@@ -1,4 +1,4 @@
-import { ResourceTextStore, websiteURL } from "./resources.js?v=6";
+import { ResourceTextStore, websiteURL } from "./resources.js?v=7";
 
 /** A single panel follows the committed slide in both reading and 3D views. */
 export function initResourcePanel({ presentation, store = new ResourceTextStore(),
@@ -11,6 +11,7 @@ export function initResourcePanel({ presentation, store = new ResourceTextStore(
   const linkCopy = $("resource-link-copy"), linkStatus = $("resource-link-status");
   let shownIndex = null, textResource = null, linkResource = null, value = null;
   let epoch = 0, disposed = false, navigating = false, busy = false, copying = false, expanded = false;
+  let copyEpoch = 0, wasVisible = presentation.resourcesVisible;
 
   function overflow() {
     if (preview.hidden) return;
@@ -20,16 +21,17 @@ export function initResourcePanel({ presentation, store = new ResourceTextStore(
     expand.hidden = !long;
   }
   function controls() {
+    const unavailable = busy || !presentation.resourcesVisible;
     const href = linkResource ? websiteURL(linkResource.url) : null;
-    copy.disabled = busy || copying || value === null;
-    linkCopy.disabled = busy || copying || !linkResource;
-    expand.disabled = busy;
-    retry.disabled = busy;
+    copy.disabled = unavailable || copying || value === null;
+    linkCopy.disabled = unavailable || copying || !linkResource;
+    expand.disabled = unavailable;
+    retry.disabled = unavailable;
     open.hidden = !href;
-    open.setAttribute("aria-disabled", String(busy));
-    if (href && !busy) open.href = href;
+    open.setAttribute("aria-disabled", String(unavailable));
+    if (href && !unavailable) open.href = href;
     else open.removeAttribute("href");
-    open.tabIndex = busy ? -1 : 0;
+    open.tabIndex = unavailable ? -1 : 0;
   }
   function setExpanded(next) {
     expanded = next;
@@ -64,13 +66,22 @@ export function initResourcePanel({ presentation, store = new ResourceTextStore(
     const destination = state.navigationTarget ?? state.index;
     const entry = presentation.entries[destination];
     const hasResources = !!entry.resources?.length;
+    const showResources = hasResources && state.resourcesVisible;
     const moving = state.navigationTarget !== null;
-    stage.classList.toggle("has-resources", hasResources);
+    stage.classList.toggle("instant-layout", state.reading || presentation.reducedMotion()
+      || (state.resourcesTransitioning && !state.resourcesTransitionAnimated));
+    stage.classList.toggle("has-resources", showResources);
     // Keep the outgoing panel mounted while its column closes; never expose
     // intermediate slides' resource contents during a multi-page index jump.
-    slot.hidden = !hasResources && !moving;
-    panel.classList.toggle("is-navigating", moving);
-    panel.inert = moving || !hasResources;
+    slot.hidden = !showResources && !moving && !state.resourcesTransitioning;
+    panel.classList.toggle("is-navigating", moving || (state.resourcesTransitioning && state.resourcesTransitionAnimated));
+    panel.inert = moving || !showResources || state.resourcesTransitioning;
+    if (wasVisible && !state.resourcesVisible) {
+      copyEpoch++; copying = false; manual.hidden = true;
+      status.textContent = ""; linkStatus.textContent = "";
+      if (panel.contains(document.activeElement)) $("resources-toggle-btn").focus({ preventScroll: true });
+    }
+    wasVisible = state.resourcesVisible;
     if (moving) {
       if (!navigating) {
         stage.scrollTop = 0;
@@ -106,6 +117,7 @@ export function initResourcePanel({ presentation, store = new ResourceTextStore(
       }
     }
     controls();
+    if (showResources && !moving && !state.busy) overflow();
   }
   expand.addEventListener("click", () => {
     setExpanded(!expanded);
@@ -115,23 +127,24 @@ export function initResourcePanel({ presentation, store = new ResourceTextStore(
   open.addEventListener("click", event => { if (busy) event.preventDefault(); });
   async function copyResource(kind) {
     const complete = kind === "url" ? (linkResource ? String(linkResource.url ?? "") : null) : value;
-    if (busy || copying || complete === null) return;
+    if (busy || copying || complete === null || !presentation.resourcesVisible) return;
     const token = epoch, feedback = kind === "url" ? linkStatus : status;
+    const copyToken = ++copyEpoch;
     copying = true; feedback.textContent = "Copying…"; controls();
     try {
       await writeClipboard(complete);
-      if (disposed || token !== epoch) return;
+      if (disposed || token !== epoch || copyToken !== copyEpoch) return;
       manual.hidden = true;
       feedback.textContent = "Copied";
     } catch {
-      if (disposed || token !== epoch) return;
+      if (disposed || token !== epoch || copyToken !== copyEpoch) return;
       feedback.textContent = "Clipboard access is unavailable. Copy the selected full text below using your device’s copy command.";
       manual.hidden = false;
       const field = $("resource-manual-text"); field.value = complete;
       field.focus({ preventScroll: true }); field.select();
       field.scrollIntoView({ block: "nearest" });
     } finally {
-      if (!disposed && token === epoch) { copying = false; controls(); }
+      if (!disposed && token === epoch && copyToken === copyEpoch) { copying = false; controls(); }
     }
   }
   copy.addEventListener("click", () => { void copyResource("text"); });

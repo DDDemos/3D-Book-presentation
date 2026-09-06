@@ -17,7 +17,7 @@ Descriptive names are fine; filenames do not determine the slide order or number
 Do not rotate the artwork or add the book's paper texture to it. The application rotates
 it to match the landscape camera and composes it over the shared paper automatically.
 The visible page is 4:3, so a 16:9 image has extra paper above and below it. Artwork is fitted
-without cropping or stretching, with a 6% page margin. Transparent image areas reveal the
+without cropping or stretching, with a 2% page margin. Transparent image areas reveal the
 paper; an opaque background in your image covers it.
 
 ## 2. Register the slide
@@ -63,6 +63,8 @@ Open `http://localhost:8000`, or reload that page if it is already open. Do not 
 Open **Index**, select the new number, and check the title by hovering or focusing it.
 Confirm the artwork is upright and complete. Switch to **Reading view** and check its
 title and description. Visit the previous/next slide and the back cover to check the order.
+Use the fullscreen icon for more presentation space. On a slide with a prompt or website,
+the panel icon can hide those resources temporarily so the page can use their space too.
 
 ## Replace, reorder, or remove a slide
 

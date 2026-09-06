@@ -1,5 +1,6 @@
 // Content and navigation deliberately have no Three.js dependency.
-import { normalizeResources } from "./resources.js?v=6";
+import { normalizeResources } from "./resources.js?v=7";
+import { RESOURCE_TRANSITION_MS } from "./display-config.js?v=7";
 export const DEV_MODE = false;
 export const presentationTitle = "Intro to Vibe Coding";
 export const slides = [
@@ -176,6 +177,9 @@ export class Presentation {
     this.navigationTarget = null;
     this.busy = false;
     this.reading = true;
+    this.resourcesVisible = true;
+    this.resourcesTransitioning = false;
+    this.resourcesTransitionAnimated = false;
     this.runtime = null;
     this.listeners = new Set();
     this.sources = new Map(); // Uploaded blob URLs retained for the current tab.
@@ -183,6 +187,7 @@ export class Presentation {
     this.error = "";
     this.disposed = false;
     this.reducedMotion = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    this.desktopLayout = () => globalThis.matchMedia?.("(min-width: 961px)").matches ?? false;
   }
   get contentIndex() { return this.currentIndex - 1; }
   onChange(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
@@ -196,6 +201,9 @@ export class Presentation {
       entry: this.entries[this.currentIndex], busy: this.busy,
       displayIndex: this.transitionIndex ?? this.currentIndex,
       navigationTarget: this.navigationTarget,
+      resourcesVisible: this.resourcesVisible,
+      resourcesTransitioning: this.resourcesTransitioning,
+      resourcesTransitionAnimated: this.resourcesTransitionAnimated,
       isAnimating: !!(this.runtime?.book.isAnimating() || this.runtime?.cameraRig?.isAnimating()), reading: this.reading,
       canPrev: !this.busy && this.currentIndex > 0,
       canNext: !this.busy && this.currentIndex < this.total - 1,
@@ -297,6 +305,30 @@ export class Presentation {
       }
       this.reading = reading;
       this.runtime?.setActive(!reading);
+    });
+  }
+  setResourcesVisible(visible) {
+    if (typeof visible !== "boolean" || visible === this.resourcesVisible) return Promise.resolve(false);
+    return this._run(async () => {
+      const previous = this.resourcesVisible;
+      this.resourcesTransitioning = true;
+      this.resourcesTransitionAnimated = !!(this.runtime && !this.reading && this.desktopLayout()
+        && !this.reducedMotion() && this.entries[this.currentIndex].resources?.length);
+      this.resourcesVisible = visible;
+      this._emit();
+      try {
+        if (this.runtime && !this.reading) {
+          if (this.resourcesTransitionAnimated) {
+            await this.runtime.transitionCamera(this.contentIndex, { duration: RESOURCE_TRANSITION_MS, waitForLayout: true });
+          } else this.runtime.setCameraState(this.contentIndex);
+        }
+      } catch (error) {
+        this.resourcesVisible = previous;
+        throw error;
+      } finally {
+        this.resourcesTransitioning = false;
+        this.resourcesTransitionAnimated = false;
+      }
     });
   }
   // Decode/prepare is injected: reading-only editing never imports Three.js.

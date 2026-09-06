@@ -1,7 +1,7 @@
 // This entry point and its static imports must stay independent of Three.js.
-import { Presentation, DEV_MODE, presentationTitle } from "./presentation.js?v=6";
-import { initUI } from "./ui.js?v=6";
-import { createStartup } from "./startup.js?v=6";
+import { Presentation, DEV_MODE, presentationTitle } from "./presentation.js?v=7";
+import { initUI } from "./ui.js?v=7";
+import { createStartup } from "./startup.js?v=7";
 
 const presentation = new Presentation();
 document.title = presentationTitle;
@@ -11,7 +11,7 @@ const ui = initUI({ presentation, devMode: DEV_MODE, retry: () => startup.start(
 startup = createStartup({
   presentation,
   loadRuntime: async () => {
-    const { createScene } = await import("./scene.js?v=6");
+    const { createScene } = await import("./scene.js?v=7");
     return () => createScene(presentation);
   },
   onStatus: ui.setStartupStatus,

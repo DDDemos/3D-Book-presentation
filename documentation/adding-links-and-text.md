@@ -103,6 +103,9 @@ move each whole slide object, including its resources.
 
 ## Check the result
 
+- The toolbar's panel icon hides or restores the resources. Hiding persists across slides
+  and reading/3D switches until restored, and resets on reload. If a configured resource is
+  missing from view, check this toggle. Its full text remains available when shown again.
 - On desktop widths above 960px, the panel sits to the right of the book. On narrower
   screens it sits below; scroll the presentation area to reach it.
 - Check the panel heading matches the slide, then navigate to a slide without resources

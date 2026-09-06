@@ -1,10 +1,10 @@
 // Optional WebGL runtime; the application can run without this entire module graph.
 import * as THREE from "three";
-import { Book3D } from "./book.js?v=6";
-import { loadImage, loadSlideTexture, loadCoverTexture, makePageBackTexture } from "./textures.js?v=6";
-import { SlideTextureCache } from "./texture-cache.js?v=6";
-import { createRenderLoop } from "./render-loop.js?v=6";
-import { createCameraRig } from "./camera.js?v=6";
+import { Book3D } from "./book.js?v=7";
+import { loadImage, loadSlideTexture, loadCoverTexture, makePageBackTexture } from "./textures.js?v=7";
+import { SlideTextureCache } from "./texture-cache.js?v=7";
+import { createRenderLoop } from "./render-loop.js?v=7";
+import { createCameraRig } from "./camera.js?v=7";
 
 export function createScene(presentation) {
   const container = document.getElementById("canvas-container");
@@ -59,7 +59,7 @@ export function createScene(presentation) {
   const book = new Book3D(scene);
   book.setSlideCount(presentation.slides.length);
   const cameraRig = createCameraRig(camera, book, presentation.slides.length);
-  const hasPanel = (entryIndex = presentation.navigationTarget ?? presentation.currentIndex) => !!presentation.entries[entryIndex]?.resources?.length;
+  const hasPanel = (entryIndex = presentation.navigationTarget ?? presentation.currentIndex) => presentation.resourcesVisible && !!presentation.entries[entryIndex]?.resources?.length;
   let cameraPanel = hasPanel();
   const wantsPanel = () => window.matchMedia("(min-width: 961px)").matches && cameraPanel;
   cameraRig.setState(presentation.contentIndex, {panel: wantsPanel()});
@@ -136,7 +136,10 @@ export function createScene(presentation) {
       cameraPanel = hasPanel();
       const completion = cameraRig.transitionTo(index, {...options, panel: wantsPanel()});
       loop.invalidate();
-      return completion;
+      // CSS layout and camera motion share the lock, including when CSS starts
+      // a frame later or a resize cancels/replaces a running transition.
+      const layout = options?.waitForLayout ? document.getElementById("stage").getAnimations() : [];
+      return Promise.all([completion, ...layout.map(animation => animation.finished.catch(() => {}))]);
     },
     setActive(value) { loop.setActive(value); if (value) resize(); },
     prepareImage(key, url) {

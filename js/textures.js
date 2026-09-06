@@ -1,5 +1,6 @@
 // Three.js texture creation. Loaded only by the optional 3D runtime.
 import * as THREE from "three";
+import { SLIDE_ARTWORK_MARGIN } from "./display-config.js?v=7";
 
 const PAGE_ASPECT = 0.75; // width / height of a single page, must match book.js
 const CANVAS_W = 1024;
@@ -78,7 +79,8 @@ function compositeImage(img, index, paperImage) {
   ctx.translate(CANVAS_W / 2, CANVAS_H / 2);
   ctx.rotate(Math.PI / 2);
   if (img) {
-    const scale = Math.min(CANVAS_H * 0.88 / img.width, CANVAS_W * 0.88 / img.height);
+    const available = 1 - 2 * SLIDE_ARTWORK_MARGIN;
+    const scale = Math.min(CANVAS_H * available / img.width, CANVAS_W * available / img.height);
     const w = img.width * scale;
     const h = img.height * scale;
     ctx.drawImage(img, -w / 2, -h / 2, w, h);
