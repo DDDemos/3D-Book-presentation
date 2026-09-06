@@ -149,6 +149,39 @@ try {
       assert(f.$('presentation-title').getAttribute('aria-hidden') === String(index !== 0), 'Incorrect heading visibility');
     }
   });
+  await check('Opening, closing, and resizing never present a cleared canvas before redrawing', async () => {
+    const canvas = f.$('book-canvas');
+    const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+    let cleared = false, resizes = 0, blankFrames = 0;
+    // Canvas size assignments clear the drawing buffer. Mutation observers run
+    // after the resize/render callback, before paint: drawing must already be done.
+    for (const name of ['width', 'height']) {
+      const descriptor = Object.getOwnPropertyDescriptor(f.win.HTMLCanvasElement.prototype, name);
+      Object.defineProperty(canvas, name, { configurable: true,
+        get() { return descriptor.get.call(this); },
+        set(value) { cleared = true; resizes++; descriptor.set.call(this, value); },
+      });
+    }
+    const originals = new Map(['drawArrays', 'drawElements'].map(name => [name, gl[name]]));
+    for (const [name, draw] of originals) gl[name] = function(...args) {
+      const result = draw.apply(this, args); cleared = false; return result;
+    };
+    const observer = new f.win.MutationObserver(() => { if (cleared) blankFrames++; });
+    observer.observe(canvas, {attributes: true, attributeFilter: ['width', 'height']});
+    try {
+      await f.p.next(); await f.p.prev();
+      frame.style.height = '620px';
+      await new Promise(resolve => setTimeout(resolve, 100));
+      frame.style.height = '650px';
+      await new Promise(resolve => setTimeout(resolve, 100));
+      assert(resizes > 0, 'Regression check did not exercise a canvas resize');
+      assert(blankFrames === 0, `${blankFrames} canvas resizes cleared the book without redrawing before paint`);
+    } finally {
+      observer.disconnect();
+      for (const name of ['width', 'height']) delete canvas[name];
+      for (const [name, draw] of originals) gl[name] = draw;
+    }
+  });
   await check('Camera stays steady between slides and renders stop after motion settles', async () => {
     await f.p.next();
     const {camera, book} = f.p.runtime;

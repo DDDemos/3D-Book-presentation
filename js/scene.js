@@ -60,7 +60,11 @@ export function createScene(presentation) {
   const cameraRig = createCameraRig(camera, book, presentation.slides.length);
   cameraRig.setState(presentation.contentIndex);
   let disposed = false;
+  let viewportDirty = true;
   function render() {
+    // Changing the drawing-buffer size clears it. Resize and draw in the same
+    // frame so a ResizeObserver (e.g. the fading heading) cannot present a blank canvas.
+    if (viewportDirty) fitViewport();
     const { left, right, bottom, top } = cameraRig.getFrame();
     const { x: width, y: height } = renderer.getSize(new THREE.Vector2());
     const x = Math.max(0, Math.floor((left + 1) * width / 2) - 3);
@@ -97,16 +101,23 @@ export function createScene(presentation) {
     else { book[setter](texture); loop.invalidate(); }
   }));
   const ready = Promise.all([paperReady, coverReady]);
-  function resize() {
+  function fitViewport() {
     if (disposed) return;
     const w = container.clientWidth;
     const h = container.clientHeight;
     if (!w || !h) return;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const ratio = Math.min(window.devicePixelRatio, 2);
+    if (renderer.getPixelRatio() !== ratio) renderer.setPixelRatio(ratio);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
-    renderer.setSize(w, h, false);
+    const size = renderer.getSize(new THREE.Vector2());
+    if (size.x !== w || size.y !== h) renderer.setSize(w, h, false);
     cameraRig.resize();
+    viewportDirty = false;
+  }
+  function resize() {
+    if (disposed) return;
+    viewportDirty = true;
     loop.invalidate();
   }
   const observer = new ResizeObserver(resize);
