@@ -4,7 +4,7 @@
 // ============================================================================
 
 import * as THREE from "three";
-import { loadSlideTexture, loadCoverTexture } from "./presentation.js";
+import { loadSlideTexture, loadCoverTexture } from "./presentation.js?v=3";
 
 // Clicking/tapping directly on the book to turn a page is a nice touch, but
 // off by default: navigation should only happen via the Next/Previous

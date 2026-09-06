@@ -12,7 +12,7 @@
 // ============================================================================
 
 import * as THREE from "three";
-import { makePageBackTexture } from "./presentation.js";
+import { makePageBackTexture } from "./presentation.js?v=3";
 
 export const PAGE_WIDTH = 1.5;
 export const PAGE_HEIGHT = 2.0;

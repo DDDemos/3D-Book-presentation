@@ -3,9 +3,9 @@
 // ============================================================================
 
 import * as THREE from "three";
-import { Book3D } from "./book.js";
-import { Presentation, slides, bookConfig, presentationTitle, loadCoverTexture } from "./presentation.js";
-import { initUI } from "./ui.js";
+import { Book3D } from "./book.js?v=3";
+import { Presentation, slides, bookConfig, presentationTitle, loadCoverTexture } from "./presentation.js?v=3";
+import { initUI } from "./ui.js?v=3";
 
 function hasWebGL() {
   try {
