@@ -14,6 +14,7 @@ export const slides = [
     title: "Prompt Engineering: Google Stitch prompt",
     description: "A Google Stitch prompt for Birmingham Music Stories, combining archival music imagery, gig posters, and industrial heritage with genre stories, a sound map, and an album timeline.",
     resources: [
+      { type: "url", label: "Google Stitch", url: "https://stitch.withgoogle.com/" },
       { type: "text", label: "Birmingham Music Stories", src: "./assets/text/birmingham-music-stories-stitch-prompt.txt" },
     ],
   },
@@ -21,6 +22,9 @@ export const slides = [
     src: "./assets/slides/NewSlides/slide-03-demos-and-slides.png",
     title: "Demos & Slides",
     description: "The workshop's demos and slides are available at https://github.com/DDDemos, shown with a preview of the GitHub profile.",
+    resources: [
+      { type: "url", label: "Demos on GitHub", url: "https://github.com/DDDemos" },
+    ],
   },
   {
     src: "./assets/slides/NewSlides/slide-04-table-of-contents.png",
@@ -77,6 +81,7 @@ export const slides = [
     title: "Google AI Studio: Prompt",
     description: "A prompt asks Google AI Studio to implement Birmingham Music Stories from the attached design using only HTML, CSS, and JavaScript, with genre selection, map stories, and expandable featured stories.",
     resources: [
+      { type: "url", label: "Google AI Studio", url: "https://aistudio.google.com/apps" },
       { type: "text", label: "Build Birmingham Music Stories", src: "./assets/text/birmingham-music-stories-ai-studio-prompt.txt" },
     ],
   },
@@ -109,6 +114,9 @@ export const slides = [
     src: "./assets/slides/NewSlides/slide-20-running-the-website-locally.png",
     title: "Running the website locally",
     description: "Serve the website locally with the Python command: python3 -m http.server 8000 --bind 0.0.0.0.",
+    resources: [
+      { type: "text", label: "Run the local server", src: "./assets/text/local-server-command.txt" },
+    ],
   },
   {
     src: "./assets/slides/NewSlides/slide-21-publishing-with-github-pages.png",
@@ -135,6 +143,9 @@ export const slides = [
     src: "./assets/slides/NewSlides/slide-24-skills.png",
     title: "Skills",
     description: "Skills are presented as reusable prompts, with https://www.skills.sh/ and screenshots of a frontend-design skill and development workspace.",
+    resources: [
+      { type: "url", label: "Skills", url: "https://www.skills.sh/" },
+    ],
   },
   {
     src: "./assets/slides/NewSlides/slide-25-documentation.png",

@@ -130,6 +130,8 @@ Slide 22 includes the photo replacement prompt from
 [birmingham-music-stories-photos-prompt.txt](assets/text/birmingham-music-stories-photos-prompt.txt).
 Slide 23 includes the About Me page prompt from
 [birmingham-music-stories-about-me-prompt.txt](assets/text/birmingham-music-stories-about-me-prompt.txt).
+Website resources link slide 2 to Google Stitch, slide 3 to the DDDemos GitHub profile,
+and slide 14 to Google AI Studio. On slides with a prompt, the website appears above it.
 Attach further resources to the appropriate slide objects as needed.
 Text and URLs drawn inside a slide image do not automatically create resource controls.
 Resource text is separate from the slide's accessible `description`.
