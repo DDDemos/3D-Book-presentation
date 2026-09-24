@@ -218,6 +218,8 @@ recovering 3D restores both the book and camera directly to the current position
 ## Reading view and recovery
 
 **Reading view** displays the current original image, heading, and optional description.
+The landscape paper expands to fit the available column and screen height, with space
+for the caption and toolbar. Short windows can scroll without reducing slides to thumbnails.
 It shares the index and navigation controls with 3D; page changes are immediate. Switching
 back to **3D view** restores the current page without replaying intervening flips. Covers are
 included. Content images remain upright on a landscape paper surface; covers stay portrait.

@@ -328,6 +328,32 @@ try {
     await wait(() => !f.doc.querySelector('.image-fallback').hidden);
     assert(f.$('reading-title').textContent && f.$('reading-description').textContent, 'Reading content disappeared');
   });
+  f = await fixture({width: 1600, height: 1000, withResources: true, landscape: true});
+  await check('Reading slides use the available desktop space and fit narrow screens without cropping', async () => {
+    await f.p.setReading(true); await f.p.goTo(1);
+    const page = f.$('reading-image-container');
+    await wait(() => f.$('presentation-title').getBoundingClientRect().height < 1, 'Cover heading did not release its space');
+    await wait(() => page.getBoundingClientRect().width > 1000, 'Desktop reading page is still capped at a small width');
+    const desktop = page.getBoundingClientRect();
+    assert(Math.abs(desktop.width / desktop.height - 4 / 3) < .01, 'Paper proportions changed');
+    assert(desktop.right < f.$('resource-panel').getBoundingClientRect().left, 'Page overlaps resources');
+    const image = page.querySelector('img'); await image.decode();
+    assert(f.win.getComputedStyle(image).objectFit === 'contain', 'Artwork can be cropped');
+    assert(f.$('reading-description').getBoundingClientRect().bottom <= f.$('reading-view').getBoundingClientRect().bottom,
+      'Desktop caption is unnecessarily pushed below the viewport');
+    for (const [width, height] of [[320, 640], [568, 320]]) {
+      frame.style.width = `${width}px`; frame.style.height = `${height}px`;
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const box = page.getBoundingClientRect();
+      assert(box.width >= Math.min(260, width - 80) && box.left >= 0 && box.right <= width,
+        `Narrow reading page is tiny or clipped: viewport ${width}, page ${box.width}, left ${box.left}, right ${box.right}`);
+      assert(f.doc.documentElement.scrollWidth <= width, 'Reading layout overflows horizontally');
+      const reader = f.$('reading-view'); reader.scrollTop = reader.scrollHeight;
+      const description = f.$('reading-description').getBoundingClientRect();
+      assert(description.bottom <= reader.getBoundingClientRect().bottom + 1, 'Caption cannot be reached by scrolling');
+      reader.scrollTop = 0;
+    }
+  });
   f = await fixture({ dev: true, count: 12 });
   await check('Dev mode creates editor with focus containment', () => {
     f.$('edit-toggle-btn').click();
