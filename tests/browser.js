@@ -160,6 +160,49 @@ try {
     assert(pixel(image, 512, 682) === '255,0,0,255', 'Opaque artwork was not composited on top');
     composed.dispose();
   });
+  await check('Static and turning page surfaces preserve source colors in the rendered 3D view', async () => {
+    const art = f.doc.createElement('canvas'); art.width = 1600; art.height = 900;
+    const ctx = art.getContext('2d');
+    const colors = ['#ffffff', '#808080', '#4080c0', '#e8b840'];
+    colors.forEach((color, i) => { ctx.fillStyle = color; ctx.fillRect(i * 400, 0, 400, 900); });
+    const texture = await f.p.runtime.prepareImage('slide:0', art.toDataURL());
+    await f.p.goTo(1);
+    const {book, camera} = f.p.runtime;
+    const page = book.rightPage, originalMaterial = page.material, originalAfterRender = page.onAfterRender;
+    const image = texture.image, scale = image.height * .96 / art.width;
+    // Four opaque source colors plus exposed paper. Compare GPU pixels with the
+    // sRGB canvas composition, not material flags, to catch lighting/tone-map regressions.
+    const samples = colors.map((_, i) => [image.width / 2, image.height / 2 + (i * 400 + 200 - 800) * scale]);
+    samples.push([image.width * .09, image.height / 2]);
+    try {
+      for (const material of [book.rightPageMat, book.flipFrontMat, book.flipBackMat, book.leftPageMat]) {
+        const originalMap = material.map;
+        let actual;
+        try {
+          material.map = texture; material.needsUpdate = true; page.material = material;
+          page.onAfterRender = renderer => {
+            const gl = renderer.getContext();
+            actual = samples.map(([x, y]) => {
+              const point = page.localToWorld(camera.position.clone().set(x / image.width * 1.5, (.5 - y / image.height) * 2, 0)).project(camera);
+              const pixel = new Uint8Array(4);
+              gl.readPixels(Math.floor((point.x + 1) / 2 * gl.drawingBufferWidth),
+                Math.floor((point.y + 1) / 2 * gl.drawingBufferHeight), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+              return pixel;
+            });
+          };
+          f.p.runtime.invalidate(); await wait(() => actual);
+          samples.forEach(([x, y], i) => {
+            const expected = image.getContext('2d').getImageData(Math.floor(x), Math.floor(y), 1, 1).data;
+            assert(expected.every((channel, j) => Math.abs(channel - actual[i][j]) <= 5),
+              `Page color changed: expected ${[...expected]}, rendered ${[...actual[i]]}`);
+          });
+        } finally { material.map = originalMap; material.needsUpdate = true; }
+      }
+    } finally {
+      page.material = originalMaterial; page.onAfterRender = originalAfterRender;
+      texture.dispose(); f.p.runtime.invalidate(); await f.p.goTo(0);
+    }
+  });
   await check('Dev mode off creates no editor markup', () => {
     assert(!f.$('edit-toggle-btn') && !f.$('editor-panel'), 'Editor leaked into normal mode');
   });

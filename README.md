@@ -199,6 +199,8 @@ book opens. The camera rotates smoothly into a nearly straight-on landscape view
 right page, with a little cover and paper edge visible. It stays steady between slides and
 returns to an upright portrait view at the back cover, without restoring the heading.
 Content framing uses 2% fit padding; the portrait covers keep their original 4.5% padding.
+Page faces preserve the original slide and paper colors to match reading view, including
+during page turns. Covers, the spine, and page-stack edges retain their 3D lighting.
 A transparent frame around the focused board keeps the unused half of the spread
 out of view even on tall phone screens or wide cover views. The whole page uses a warm
 taupe background on both covers and fades to deep brown on content slides, in both 3D

@@ -151,7 +151,7 @@ function buildFlipGeometry() {
   return { geometry, base, vertsPerLayer };
 }
 
-/** Fallback material used while a real texture is loading or missing. */
+/** Lit material for the physical cover and spine. */
 function neutralMaterial(texture) {
   return new THREE.MeshStandardMaterial({
     map: texture,
@@ -159,6 +159,11 @@ function neutralMaterial(texture) {
     metalness: 0.02,
     color: 0xffffff,
   });
+}
+
+/** Display sRGB paper/artwork like reading view, independent of lights and exposure. */
+function pageMaterial(texture) {
+  return new THREE.MeshBasicMaterial({ map: texture, color: 0xffffff, toneMapped: false });
 }
 
 export class Book3D {
@@ -193,7 +198,7 @@ export class Book3D {
     const pageGeo = new THREE.PlaneGeometry(w, h);
     pageGeo.translate(w / 2, 0, 0);
 
-    this.rightPageMat = neutralMaterial(null);
+    this.rightPageMat = pageMaterial(null);
     this.rightPageMat.side = THREE.DoubleSide;
     this.rightPage = new THREE.Mesh(pageGeo, this.rightPageMat);
     this.rightPage.position.set(0, 0, LAYER_GAP);
@@ -201,7 +206,7 @@ export class Book3D {
     this.rightPage.visible = false;
     this.group.add(this.rightPage);
 
-    this.leftPageMat = neutralMaterial(this._pageBackTexture);
+    this.leftPageMat = pageMaterial(this._pageBackTexture);
     this.leftPageMat.side = THREE.DoubleSide;
     this.leftPage = new THREE.Mesh(pageGeo, this.leftPageMat);
     this.leftPage.position.set(0, 0, LAYER_GAP);
@@ -286,9 +291,9 @@ export class Book3D {
     this._flipVertsPerLayer = vertsPerLayer;
     this._flipGeometry = geometry;
 
-    this.flipFrontMat = neutralMaterial(null);
+    this.flipFrontMat = pageMaterial(null);
     this.flipFrontMat.side = THREE.FrontSide;
-    this.flipBackMat = neutralMaterial(this._pageBackTexture);
+    this.flipBackMat = pageMaterial(this._pageBackTexture);
     this.flipBackMat.side = THREE.FrontSide;
 
     this.flipMesh = new THREE.Mesh(geometry, [this.flipFrontMat, this.flipBackMat]);

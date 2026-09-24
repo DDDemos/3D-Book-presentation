@@ -99,6 +99,9 @@ geometry. The book's physical page proportions remain portrait.
 
 Geometry construction, stack placement, and page bending are internal methods such as
 `_buildStaticParts()`, `_buildFlippingPage()`, `_layoutStacks()`, and `_updateFlipGeometry()`.
+`pageMaterial()` uses an unlit, non-tone-mapped material for static and turning page faces
+so sRGB artwork and paper retain their reading-view colors. Covers, spine, and stack edges
+use lit materials to preserve the book's depth.
 
 ## SlideTextureCache
 
